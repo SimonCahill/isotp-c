@@ -11,6 +11,8 @@ extern "C" {
 void isotp_user_debug(const char* message, ...);
 
 /* user implemented, send can message. should return ISOTP_RET_OK when success.
+** may return ISOTP_RET_NOSPACE if the CAN transfer should be retried later
+** or ISOTP_RET_ERROR if transmission couldn't be completed
 */
 int  isotp_user_send_can(const uint32_t arbitration_id,
                          const uint8_t* data, const uint8_t size);
