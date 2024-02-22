@@ -278,7 +278,7 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
     return ret;
 }
 
-void isotp_on_can_message(IsoTpLink *link, uint8_t *data, uint8_t len) {
+void isotp_on_can_message(IsoTpLink *link, const uint8_t *data, uint8_t len) {
     IsoTpCanMessage message;
     int ret;
     
