@@ -213,6 +213,10 @@ static int isotp_receive_consecutive_frame(IsoTpLink *link, IsoTpCanMessage *mes
 }
 
 static int isotp_receive_flow_control_frame(IsoTpLink *link, IsoTpCanMessage *message, uint8_t len) {
+    /* unused args */
+    (void) link;
+    (void) message;
+
     /* check message length */
     if (len < 3) {
         isotp_user_debug("Flow control frame too short.");
