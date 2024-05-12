@@ -9,10 +9,13 @@
 /* st_min to microsecond */
 static uint8_t isotp_us_to_st_min(uint32_t us) {
     if (us <= 127000) {
-        return us / 1000;
-    } else if (us >= 100 && us <= 900) {
-        return 0xF0 + (us / 100);
+        if (us >= 100 && us <= 900) {
+            return (uint8_t)(0xF0 + (us / 100));
+        } else {
+            return (uint8_t)(us / 1000u);
+        }
     }
+
     return 0;
 }
 
@@ -26,7 +29,7 @@ static uint32_t isotp_st_min_to_us(uint8_t st_min) {
     return 0;
 }
 
-static int isotp_send_flow_control(IsoTpLink* link, uint8_t flow_status, uint8_t block_size, uint32_t st_min_us) {
+static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, uint8_t block_size, uint32_t st_min_us) {
 
     IsoTpCanMessage message;
     int ret;
@@ -50,7 +53,7 @@ static int isotp_send_flow_control(IsoTpLink* link, uint8_t flow_status, uint8_t
     return ret;
 }
 
-static int isotp_send_single_frame(IsoTpLink* link, uint32_t id) {
+static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
 
     IsoTpCanMessage message;
     int ret;
@@ -137,7 +140,7 @@ static int isotp_send_consecutive_frame(IsoTpLink* link) {
     return ret;
 }
 
-static int isotp_receive_single_frame(IsoTpLink *link, IsoTpCanMessage *message, uint8_t len) {
+static int isotp_receive_single_frame(IsoTpLink* link, const IsoTpCanMessage* message, uint8_t len) {
     /* check data length */
     if ((0 == message->as.single_frame.SF_DL) || (message->as.single_frame.SF_DL > (len - 1))) {
         isotp_user_debug("Single-frame length too small.");
