@@ -12,7 +12,6 @@
     "type": "git",
     "url": "git@github.com:SimonCahill/isotp-c.git"
   },
-  "version": "1.1.7",
   "frameworks": "*",
   "platforms": "*",
   "headers": "isotp.h",
