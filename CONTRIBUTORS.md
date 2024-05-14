@@ -10,6 +10,7 @@
 | [Phil Greenland](https://github.com/pgreenland)     |  Added support for message retries if the remote controller was busy                           | #26    |
 | [Phil Greenland](https://github.com/pgreenland)     |  Fixed PIC being generated for static binaries                                                 | #27    |
 | [speedy-h](https://github.com/speedy-h)             |  Fixed compiler error when compiling with `-Wextra` caused by unused function params.          | #32    |
+| [kazetsukaimiko](https://github.com/kazetsukaimiko) |  Added support for PlatformIO, a platform for distributing libraries for a variety of systems. | #35    |
 
 Thank you everyone for contributing to this library and improving it!
 Have you contributed and I've forgotten to mention you? Please let me know and I'll add you here!
