@@ -17,7 +17,11 @@ void isotp_user_debug(const char* message, ...);
  * or ISOTP_RET_ERROR if transmission couldn't be completed
  */
 int  isotp_user_send_can(const uint32_t arbitration_id,
-                         const uint8_t* data, const uint8_t size);
+                         const uint8_t* data, const uint8_t size
+#if ISO_TP_USER_SEND_CAN_ARG
+,void *arg
+#endif                         
+                         );
 
 /**
  * @brief user implemented, gets the amount of time passed since the last call in microseconds

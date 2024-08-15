@@ -53,6 +53,10 @@ typedef struct IsoTpLink {
                                                      end at receive FC */
     int                         receive_protocol_result;
     uint8_t                     receive_status;                                                     
+
+#if defined(ISO_TP_USER_SEND_CAN_ARG)
+    void*                       user_send_can_arg;
+#endif
 } IsoTpLink;
 
 /**
