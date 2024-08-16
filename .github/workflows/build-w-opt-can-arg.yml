@@ -1,4 +1,4 @@
-name: CMake
+name: "CMake w/ changes from #36"
 
 on:
   push:
