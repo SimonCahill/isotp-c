@@ -31,8 +31,8 @@ CPPSTD := "c++0x"
 ###
 LIB_NAME := "libisotp.so"
 MAJOR_VER := "1"
-MINOR_VER := "1"
-REVISION := "1"
+MINOR_VER := "2"
+REVISION := "0"
 OUTPUT_NAME := $(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION)
 
 ###
