@@ -76,6 +76,46 @@ isotp-c supports this also, via options.
 
 Either pass `-Disotpc_STATIC_LIBRARY=ON` via command-line or `set(isotpc_STATIC_LIBRARY ON CACHE BOOL "Enable static library for isotp-c")` in your CMakeLists.txt and the library will be built as a static library (`*.a|*.lib`) for your project to include.
 
+#### Use of multiple CAN interfaces
+For applications requiring multiple CAN interfaces, it is necessary to specify the interface in `isotp_user_send_can`. 
+
+In this case the config option `-DISO_TP_USER_SEND_CAN_ARG` may be enabled. The library may then be used as follows:
+
+```c
+// Objects representing two CAN interfaces: a and b.
+CAN_IFACE_t can_a, can_b;
+
+void init() {
+    // Two IsoTpLinks assumed to be bound to different CAN interfaces.
+    IsoTpLink link_a, link_b;
+
+    isotp_init_link(&link_a, ...);
+    isotp_init_link(&link_b, ...);
+
+    // After link initialization, the relevant CAN interface may be
+    // attached to the link. 
+    link_a.user_send_can_arg = &can_a;
+    link_a.user_send_can_arg = &can_b;
+}
+
+int isotp_user_send_can(
+    const uint32_t arbitration_id, 
+    const uint8_t *data, 
+    const uint8_t size,
+    void *user_send_can_arg) 
+{
+    // It is then available for use inside isotp_user_send_can
+    int err = CAN_SEND((CAN_IFACE_t *)(user_send_can_arg), arbitration_id, data, size);
+    if (err) {
+        return ISOTP_RET_ERROR;
+    } else {
+        return ISOTP_RET_OK;
+    }
+}
+
+```
+
+
 #### Inclusion in your CMake project
 ```cmake
 ###

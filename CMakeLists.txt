@@ -10,6 +10,7 @@ option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of 
 option(isotpc_STATIC_LIBRARY_PIC "Make use of position independent code (PIC), when compiling as a static library (enabled automatically when building shared libraries)." OFF)
 option(isotpc_PAD_CAN_FRAMES "Pad CAN frames to their full size." ON)
 set(isotpc_CAN_FRAME_PAD_VALUE "0xAA" CACHE STRING "Padding byte value to be used in CAN frames if enabled")
+option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can to better support multiple CAN interfaces." OFF)
 
 if (isotpc_STATIC_LIBRARY)
     add_library(isotp STATIC ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
@@ -40,6 +41,13 @@ endif()
 ###
 if (isotpc_PAD_CAN_FRAMES)
     target_compile_definitions(isotp PRIVATE -DISO_TP_FRAME_PADDING -DISO_TP_FRAME_PADDING_VALUE=${isotpc_CAN_FRAME_PAD_VALUE})
+endif()
+
+###
+# Include additional arg in isotp_user_send_can if required
+###
+if (isotpc_ENABLE_CAN_SEND_ARG)
+    target_compile_options(isotp PRIVATE -DISO_TP_USER_SEND_CAN_ARG)
 endif()
 
 ###
