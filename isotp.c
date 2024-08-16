@@ -33,6 +33,7 @@ static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, u
 
     IsoTpCanMessage message;
     int ret;
+    uint8_t size = 0;
 
     /* setup message  */
     message.as.flow_control.type = ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME;
@@ -43,12 +44,16 @@ static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, u
     /* send message */
 #ifdef ISO_TP_FRAME_PADDING
     (void) memset(message.as.flow_control.reserve, ISO_TP_FRAME_PADDING_VALUE, sizeof(message.as.flow_control.reserve));
-    ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, sizeof(message));
+    size = sizeof(message);
 #else
-    ret = isotp_user_send_can(link->send_arbitration_id,
-            message.as.data_array.ptr,
-            3);
+    size = 3;
 #endif
+
+    ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
+    #if defined (ISO_TP_USER_SEND_CAN_ARG)
+    ,link->user_send_can_arg
+    #endif
+    );
 
     return ret;
 }
@@ -57,6 +62,7 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
 
     IsoTpCanMessage message;
     int ret;
+    uint8_t size = 0;
 
     /* multi frame message length must greater than 7  */
     assert(link->send_size <= 7);
@@ -69,12 +75,16 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
     /* send message */
 #ifdef ISO_TP_FRAME_PADDING
     (void) memset(message.as.single_frame.data + link->send_size, ISO_TP_FRAME_PADDING_VALUE, sizeof(message.as.single_frame.data) - link->send_size);
-    ret = isotp_user_send_can(id, message.as.data_array.ptr, sizeof(message));
+    size = sizeof(message);
 #else
-    ret = isotp_user_send_can(id,
-            message.as.data_array.ptr,
-            link->send_size + 1);
+    size = link->send_size + 1;
 #endif
+
+    ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
+    #if defined (ISO_TP_USER_SEND_CAN_ARG)
+    ,link->user_send_can_arg
+    #endif
+    );
 
     return ret;
 }
@@ -94,7 +104,12 @@ static int isotp_send_first_frame(IsoTpLink* link, uint32_t id) {
     (void) memcpy(message.as.first_frame.data, link->send_buffer, sizeof(message.as.first_frame.data));
 
     /* send message */
-    ret = isotp_user_send_can(id, message.as.data_array.ptr, sizeof(message));
+    ret = isotp_user_send_can(id, message.as.data_array.ptr, sizeof(message) 
+    #if defined (ISO_TP_USER_SEND_CAN_ARG)
+    ,link->user_send_can_arg
+    #endif
+
+    );
     if (ISOTP_RET_OK == ret) {
         link->send_offset += sizeof(message.as.first_frame.data);
         link->send_sn = 1;
@@ -108,6 +123,7 @@ static int isotp_send_consecutive_frame(IsoTpLink* link) {
     IsoTpCanMessage message;
     uint16_t data_length;
     int ret;
+    uint8_t size = 0;
 
     /* multi frame message length must greater than 7  */
     assert(link->send_size > 7);
@@ -124,12 +140,18 @@ static int isotp_send_consecutive_frame(IsoTpLink* link) {
     /* send message */
 #ifdef ISO_TP_FRAME_PADDING
     (void) memset(message.as.consecutive_frame.data + data_length, ISO_TP_FRAME_PADDING_VALUE, sizeof(message.as.consecutive_frame.data) - data_length);
-    ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, sizeof(message));
+    size = sizeof(message);
 #else
-    ret = isotp_user_send_can(link->send_arbitration_id,
-            message.as.data_array.ptr,
-            data_length + 1);
+    size = data_length + 1;
 #endif
+
+    ret = isotp_user_send_can(link->send_arbitration_id,
+            message.as.data_array.ptr, size
+#if defined (ISO_TP_USER_SEND_CAN_ARG)
+    ,link->user_send_can_arg
+#endif
+    );
+
     if (ISOTP_RET_OK == ret) {
         link->send_offset += data_length;
         if (++(link->send_sn) > 0x0F) {

@@ -31,5 +31,10 @@
 #define ISO_TP_FRAME_PADDING_VALUE 0xAA
 #endif
 
+/* Private: Determines if by default, an additional argument is present in the
+ * definition of isotp_user_send_can. 
+ */
+//#define ISO_TP_USER_SEND_CAN_ARG
+
 #endif
 
