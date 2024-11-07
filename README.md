@@ -22,7 +22,7 @@ This library doesn't assume anything about the source of the ISO-TP messages or 
 ## Contributors
 
 It's at this point where I'd like to point out all the fantastic contributions made to this fork by the amazing people using it!
-[List of contributors](https://raw.githubusercontent.com/SimonCahill/isotp-c/master/CONTRIBUTORS.md)
+[List of contributors](https://github.com/SimonCahill/isotp-c/blob/master/CONTRIBUTORS.md)
 
 Thank you all!
 
