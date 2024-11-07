@@ -1,6 +1,6 @@
 |  Name and Profile                                   |  Contribution                                                                                  | PR     |
 |-----------------------------------------------------|------------------------------------------------------------------------------------------------|--------|
-| [Li Shen](https://github.com/lishen)                |  Original Author                                                                               |        |
+| [Li Shen](https://github.com/lishen2)               |  Original Author                                                                               |        |
 | [Simon Cahill](https://github.com/SimonCahill)      |  CMake support, documentation improvements, code simplification, fork owner                    |        |
 | [Brandon Ros](https://github.com/brandonros)        |  Migrated timestamps from milliseconds to microseconds.                                        | #12    |
 | [Nick James Kirkby](https://github.com/driftregion) |  Fixed include path warnings on Win64                                                          | #13    |
