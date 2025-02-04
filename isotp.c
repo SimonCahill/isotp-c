@@ -274,6 +274,7 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
         int32_t writtenChars = sprintf(&message[0], "Attempted to send %d bytes; max size is %d!\n", size, link->send_buf_size);
 
         assert(writtenChars <= messageSize);
+        (void) writtenChars;
         
         isotp_user_debug(message);
         return ISOTP_RET_OVERFLOW;
