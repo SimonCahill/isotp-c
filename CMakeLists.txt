@@ -12,6 +12,8 @@ option(isotpc_PAD_CAN_FRAMES "Pad CAN frames to their full size." ON)
 set(isotpc_CAN_FRAME_PAD_VALUE "0xAA" CACHE STRING "Padding byte value to be used in CAN frames if enabled")
 option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can to better support multiple CAN interfaces." OFF)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if (isotpc_STATIC_LIBRARY)
     add_library(isotp STATIC ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
 else()
