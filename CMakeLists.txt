@@ -27,6 +27,8 @@ target_compile_options(
     isotp PRIVATE
     -Werror
     -Wall
+    -Wpedantic
+    -Wextra
     -Wno-unknown-pragmas # ignore unknown pragmas, such as #pragma region
 )
 

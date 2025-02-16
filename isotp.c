@@ -58,7 +58,8 @@ static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, u
     return ret;
 }
 
-static int isotp_send_single_frame(const IsoTpLink* link, uint32_t) {
+static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
+    (void) id; // Prevent unused variable warning
 
     IsoTpCanMessage message;
     int ret;
