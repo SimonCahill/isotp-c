@@ -78,7 +78,7 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
     (void) memset(message.as.single_frame.data + link->send_size, ISO_TP_FRAME_PADDING_VALUE, sizeof(message.as.single_frame.data) - link->send_size);
     size = sizeof(message);
 #else
-    size = link->send_size + 1;
+    size = link->send_size + (uint8_t)1;
 #endif
 
     ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
