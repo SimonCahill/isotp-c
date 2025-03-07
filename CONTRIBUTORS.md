@@ -12,6 +12,7 @@
 | [speedy-h](https://github.com/speedy-h)             |  Fixed compiler error when compiling with `-Wextra` caused by unused function params.          | #32    |
 | [kazetsukaimiko](https://github.com/kazetsukaimiko) |  Added support for PlatformIO, a platform for distributing libraries for a variety of systems. | #35    |
 | [driftregion](https://github.com/driftregion)       |  Added support for optional CAN arguments for adapter-specific information.                    | #36    |
+| [andyneubacher](https://github.com/AndyNeubacher)   |  Added support for larger frame sizes (ISO15765-2:2016).                                       | #46    |
 
 Thank you everyone for contributing to this library and improving it!
 Have you contributed and I've forgotten to mention you? Please let me know and I'll add you here!
