@@ -81,10 +81,11 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
     size = link->send_size + (uint8_t)1;
 #endif
 
-    ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
-    #if defined (ISO_TP_USER_SEND_CAN_ARG)
-    ,link->user_send_can_arg
-    #endif
+    ret = isotp_user_send_can(
+        link->send_arbitration_id, message.as.data_array.ptr, size
+        #if defined (ISO_TP_USER_SEND_CAN_ARG)
+        ,link->user_send_can_arg
+        #endif
     );
 
     return ret;
@@ -92,8 +93,8 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
 
 static int isotp_send_first_frame(IsoTpLink* link, uint32_t id) {
     
-    IsoTpCanMessage message;
-    int ret;
+    IsoTpCanMessage message = {0};
+    int ret = 0;
 
     /* multi frame message length must greater than 7  */
     assert(link->send_size > 7);
@@ -106,17 +107,17 @@ static int isotp_send_first_frame(IsoTpLink* link, uint32_t id) {
         (void)memcpy(message.as.first_frame_short.data, link->send_buffer, sizeof(message.as.first_frame_short.data));
 
         /* send 'short' message */
-        ret = isotp_user_send_can(id, message.as.data_array.ptr, sizeof(message) 
-        #if defined (ISO_TP_USER_SEND_CAN_ARG)
-        ,link->user_send_can_arg
-        #endif
-
+        ret = isotp_user_send_can(
+            id, message.as.data_array.ptr, sizeof(message) 
+            #if defined (ISO_TP_USER_SEND_CAN_ARG)
+            ,link->user_send_can_arg
+            #endif
         );
-        if (ISOTP_RET_OK == ret)
+
+        if (ISOTP_RET_OK == ret) {
             link->send_offset += sizeof(message.as.first_frame_short.data);
-    }
-    else // ISO15765-2:2016
-    {
+        }
+    } else { // ISO15765-2:2016
         /* setup 'long' message */
         message.as.first_frame_long.set_to_zero_high = 0;
         message.as.first_frame_long.set_to_zero_low = 0;
@@ -125,14 +126,16 @@ static int isotp_send_first_frame(IsoTpLink* link, uint32_t id) {
         (void)memcpy(message.as.first_frame_long.data, link->send_buffer, sizeof(message.as.first_frame_long.data));
 
         /* send 'long' message */
-        ret = isotp_user_send_can(id, message.as.data_array.ptr, sizeof(message) 
-        #if defined (ISO_TP_USER_SEND_CAN_ARG)
-        ,link->user_send_can_arg
-        #endif
-
+        ret = isotp_user_send_can(
+            id, message.as.data_array.ptr, sizeof(message) 
+            #if defined (ISO_TP_USER_SEND_CAN_ARG)
+            ,link->user_send_can_arg
+            #endif
         );
-        if (ISOTP_RET_OK == ret)
+
+        if (ISOTP_RET_OK == ret) {
             link->send_offset += sizeof(message.as.first_frame_long.data);
+        }
     }
 
     link->send_sn = 1;
@@ -167,11 +170,12 @@ static int isotp_send_consecutive_frame(IsoTpLink* link) {
     size = data_length + 1;
 #endif
 
-    ret = isotp_user_send_can(link->send_arbitration_id,
-            message.as.data_array.ptr, size
-#if defined (ISO_TP_USER_SEND_CAN_ARG)
-    ,link->user_send_can_arg
-#endif
+    ret = isotp_user_send_can(
+        link->send_arbitration_id,
+        message.as.data_array.ptr, size
+        #if defined (ISO_TP_USER_SEND_CAN_ARG)
+            ,link->user_send_can_arg
+        #endif
     );
 
     if (ISOTP_RET_OK == ret) {
@@ -307,7 +311,7 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
         isotp_user_debug("Message size too large. Increase ISO_TP_MAX_MESSAGE_SIZE to set a larger buffer\n");
         const int32_t messageSize = 128;
         char message[messageSize];
-        int32_t writtenChars = sprintf(&message[0], "Attempted to send %d bytes; max size is %d!\n", size, link->send_buf_size);
+        int32_t writtenChars = snprintf(&message[0], 128, "Attempted to send %d bytes; max size is %d!\n", size, link->send_buf_size);
 
         assert(writtenChars <= messageSize);
         (void) writtenChars;
@@ -531,16 +535,17 @@ void isotp_init_link(IsoTpLink *link, uint32_t sendid, uint8_t *sendbuf, uint32_
 }
 
 void isotp_poll(IsoTpLink *link) {
-    int ret;
+    int ret = 0;
 
     /* only polling when operation in progress */
     if (ISOTP_SEND_STATUS_INPROGRESS == link->send_status) {
 
         /* continue send data */
         if (/* send data if bs_remain is invalid or bs_remain large than zero */
-        (ISOTP_INVALID_BS == link->send_bs_remain || link->send_bs_remain > 0) &&
-        /* and if st_min is zero or go beyond interval time */
-        (0 == link->send_st_min_us || IsoTpTimeAfter(isotp_user_get_us(), link->send_timer_st))) {
+            (ISOTP_INVALID_BS == link->send_bs_remain || link->send_bs_remain > 0) &&
+            /* and if st_min is zero or go beyond interval time */
+            (0 == link->send_st_min_us || IsoTpTimeAfter(isotp_user_get_us(), link->send_timer_st))
+        ) {
             
             ret = isotp_send_consecutive_frame(link);
             if (ISOTP_RET_OK == ret) {
