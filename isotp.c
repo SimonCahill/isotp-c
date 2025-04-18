@@ -154,7 +154,7 @@ static int isotp_send_consecutive_frame(IsoTpLink* link) {
     assert(link->send_size > 7);
 
     /* setup message  */
-    message.as.consecutive_frame.type = TSOTP_PCI_TYPE_CONSECUTIVE_FRAME;
+    message.as.consecutive_frame.type = ISOTP_PCI_TYPE_CONSECUTIVE_FRAME;
     message.as.consecutive_frame.SN = link->send_sn;
     data_length = link->send_size - link->send_offset;
     if (data_length > sizeof(message.as.consecutive_frame.data)) {
@@ -309,12 +309,10 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
 
     if (size > link->send_buf_size) {
         isotp_user_debug("Message size too large. Increase ISO_TP_MAX_MESSAGE_SIZE to set a larger buffer\n");
-        const int32_t messageSize = 128;
-        char message[messageSize];
-        int32_t writtenChars = snprintf(&message[0], 128, "Attempted to send %u  bytes; max size is %u!\n", (unsigned int)size, (unsigned int)link->send_buf_size);
+        char message[128];
+        int32_t writtenChars = snprintf(message, sizeof(message), "Attempted to send %u bytes; max size is %u!\n", (unsigned int)size, (unsigned int)link->send_buf_size);
 
-        assert(writtenChars <= messageSize);
-        (void) writtenChars;
+        (void)writtenChars; // Suppress unused variable warning
         
         isotp_user_debug(message);
         return ISOTP_RET_OVERFLOW;
@@ -416,7 +414,7 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
             
             break;
         }
-        case TSOTP_PCI_TYPE_CONSECUTIVE_FRAME: {
+        case ISOTP_PCI_TYPE_CONSECUTIVE_FRAME: {
             /* check if in receiving status */
             if (ISOTP_RECEIVE_STATUS_INPROGRESS != link->receive_status) {
                 link->receive_protocol_result = ISOTP_PROTOCOL_RESULT_UNEXP_PDU;

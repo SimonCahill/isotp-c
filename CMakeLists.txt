@@ -15,22 +15,29 @@ option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (isotpc_STATIC_LIBRARY)
-    add_library(isotp STATIC ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
+    add_library(isotp STATIC ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c ${CMAKE_CURRENT_SOURCE_DIR}/isotp_user_impl.c)
 else()
-    add_library(isotp SHARED ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
+    add_library(isotp SHARED ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c ${CMAKE_CURRENT_SOURCE_DIR}/isotp_user_impl.c)
 endif()
+
+target_compile_definitions(isotp PRIVATE _CRT_SECURE_NO_WARNINGS)
 
 ###
 # Strict building policies
 ###
 target_compile_options(
     isotp PRIVATE
-    -Werror
-    -Wall
-    -Wpedantic
-    -Wextra
-    -Wno-unknown-pragmas # ignore unknown pragmas, such as #pragma region
+    $<$<C_COMPILER_ID:MSVC>:/W4>
+    $<$<NOT:$<C_COMPILER_ID:MSVC>>:-Wall -Wextra>
 )
+
+# Platform-specific configurations
+if(WIN32)
+    target_compile_definitions(isotp PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(isotp PRIVATE Threads::Threads)
+endif()
 
 ###
 # Enable position independent code (PIC) if required
