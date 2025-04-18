@@ -6,13 +6,15 @@
 /**************************************************************
  * compiler specific defines
  *************************************************************/
-#ifdef __GNUC__
+#if defined(__GNUC__)
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #else
 #error "unsupported byte ordering"
 #endif
+#elif defined(_MSC_VER)
+#define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
 #endif
 
 /**************************************************************
@@ -87,13 +89,15 @@ typedef struct {
     uint8_t data[6];
 } IsoTpFirstFrameShort;
 
-typedef struct __attribute__((packed)) {
+#pragma pack(push, 1)
+typedef struct {
     uint8_t set_to_zero_high:4;
     uint8_t type:4;
     uint8_t set_to_zero_low;
     uint32_t FF_DL;
     uint8_t data[2];
 } IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 typedef struct {
     uint8_t SN:4;
@@ -160,13 +164,15 @@ typedef struct {
 * | PCIType = 1 | unused=0  | escape sequence = 0   | FF_DL                                 |
 * +-------------+-----------+-----------------------+---------------------------------------+
 */
-typedef struct __attribute__((packed)) {
+#pragma pack(push, 1)
+typedef struct {
     uint8_t set_to_zero_high:4;
     uint8_t type:4;
     uint8_t set_to_zero_low;
     uint32_t FF_DL;
     uint8_t data[2];
 } IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 /*
 * consecutive frame
@@ -229,7 +235,7 @@ typedef struct {
 typedef enum {
     ISOTP_PCI_TYPE_SINGLE             = 0x0,
     ISOTP_PCI_TYPE_FIRST_FRAME        = 0x1,
-    TSOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2,
+    ISOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2,
     ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME = 0x3
 } IsoTpProtocolControlInformation;
 
