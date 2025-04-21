@@ -7,28 +7,30 @@
  * compiler specific defines
  *************************************************************/
 #ifdef __GNUC__
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#else
-#error "unsupported byte ordering"
-#endif
+    #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+        #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
+    #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    #else
+        #error "unsupported byte ordering"
+    #endif
+
+    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) 
 #endif
 
 /**************************************************************
  * OS specific defines
  *************************************************************/
 #ifdef _WIN32
-#define snprintf _snprintf
-#endif
+    #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct content __pragma(pack(pop))
 
-#ifdef _WIN32
-#include <windows.h>
-#define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-#define __builtin_bswap8  _byteswap_uint8
-#define __builtin_bswap16 _byteswap_uint16
-#define __builtin_bswap32 _byteswap_uint32
-#define __builtin_bswap64 _byteswap_uint64
+    #define snprintf _snprintf
+
+    #include <windows.h>
+    #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
+    #define __builtin_bswap8  _byteswap_uint8
+    #define __builtin_bswap16 _byteswap_uint16
+    #define __builtin_bswap32 _byteswap_uint32
+    #define __builtin_bswap64 _byteswap_uint64
 #endif
 
 #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
@@ -51,6 +53,9 @@
 
 /*  invalid bs */
 #define ISOTP_INVALID_BS       0xFFFF
+
+/* Define the maximum amount of characters allowed in an error message. This fixes code which would otherwise break on Microsoft's dumb platform. */
+#define ISOTP_MAX_ERROR_MSG_SIZE 128
 
 /* ISOTP sender status */
 typedef enum {
@@ -87,13 +92,13 @@ typedef struct {
     uint8_t data[6];
 } IsoTpFirstFrameShort;
 
-typedef struct __attribute__((packed)) {
-    uint8_t set_to_zero_high:4;
-    uint8_t type:4;
+ISOTP_PACKED_STRUCT({
+    uint8_t set_to_zero_high : 4;
+    uint8_t type : 4;
     uint8_t set_to_zero_low;
     uint32_t FF_DL;
     uint8_t data[2];
-} IsoTpFirstFrameLong;
+} IsoTpFirstFrameLong);
 
 typedef struct {
     uint8_t SN:4;
@@ -160,13 +165,13 @@ typedef struct {
 * | PCIType = 1 | unused=0  | escape sequence = 0   | FF_DL                                 |
 * +-------------+-----------+-----------------------+---------------------------------------+
 */
-typedef struct __attribute__((packed)) {
+ISOTP_PACKED_STRUCT({
     uint8_t set_to_zero_high:4;
     uint8_t type:4;
     uint8_t set_to_zero_low;
     uint32_t FF_DL;
     uint8_t data[2];
-} IsoTpFirstFrameLong;
+} IsoTpFirstFrameLong);
 
 /*
 * consecutive frame
