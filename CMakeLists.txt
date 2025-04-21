@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 ###
 # Project definition
 ###
-project(isotp LANGUAGES C VERSION 1.4.1 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
+project(isotp LANGUAGES C VERSION 1.5.0 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
@@ -14,7 +14,7 @@ option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (isotpc_STATIC_LIBRARY)
+if (isotpc_STATIC_LIBRARY OR MSVC)
     add_library(isotp STATIC ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
 else()
     add_library(isotp SHARED ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
@@ -23,14 +23,21 @@ endif()
 ###
 # Strict building policies
 ###
-target_compile_options(
-    isotp PRIVATE
-    -Werror
-    -Wall
-    -Wpedantic
-    -Wextra
-    -Wno-unknown-pragmas # ignore unknown pragmas, such as #pragma region
-)
+if (MSVC)
+    target_compile_options(
+        isotp PRIVATE
+        /W4
+    )
+else()
+    target_compile_options(
+        isotp PRIVATE
+        -Werror
+        -Wall
+        -Wpedantic
+        -Wextra
+        -Wno-unknown-pragmas # ignore unknown pragmas, such as #pragma region
+    )
+endif()
 
 ###
 # Enable position independent code (PIC) if required

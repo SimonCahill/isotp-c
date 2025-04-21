@@ -1,0 +1,30 @@
+# .github/workflows/windows-msvc-cmake.yml
+name: Windows MSVC Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: Build with MSVC via CMake
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B build  -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Release)
+        run: cmake --build build --config Release -- /m
+
+      - name: Run unit tests
+        if: always()
+        run: |
+          cd build
+          ctest --output-on-failure --timeout 120
