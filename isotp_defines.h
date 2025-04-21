@@ -14,7 +14,7 @@
         #error "unsupported byte ordering"
     #endif
 
-    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) 
+    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) content
 #endif
 
 /**************************************************************
