@@ -19,6 +19,12 @@ This library doesn't assume anything about the source of the ISO-TP messages or 
 ### Master Build
 [![CMake](https://github.com/SimonCahill/isotp-c/actions/workflows/cmake.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/cmake.yml)
 
+### Master Build w/ Custom Args
+[![CMake w/ changes from #36](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-opt-can-arg.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-opt-can-arg.yml)
+
+### Master Build w/ MSVC
+[![Windows MSVC Build](https://github.com/SimonCahill/isotp-c/actions/workflows/build-msvc.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-msvc.yml)
+
 ## Contributors
 
 It's at this point where I'd like to point out all the fantastic contributions made to this fork by the amazing people using it!
