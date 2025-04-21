@@ -31,10 +31,3 @@ jobs:
         run: |
           cd build
           ctest --output-on-failure --timeout 120
-
-      - name: Upload build artifacts
-        if: success()
-        uses: actions/upload-artifact@v3
-        with:
-          name: isotp-c-windows
-          path: build/Release/*.lib
