@@ -235,7 +235,9 @@ typedef enum {
     ISOTP_PCI_TYPE_SINGLE             = 0x0,
     ISOTP_PCI_TYPE_FIRST_FRAME        = 0x1,
     TSOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2,
-    ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME = 0x3
+    ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME = 0x3,
+
+    ISOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2, // Typo fix; but keep broken value for backwards-compat.
 } IsoTpProtocolControlInformation;
 
 /* Private: Protocol Control Information (PCI) flow control identifiers.
