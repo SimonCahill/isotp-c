@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+#include "isotp_config.h"
 #include "isotp_defines.h"
 #include "isotp_config.h"
 #include "isotp_user.h"
