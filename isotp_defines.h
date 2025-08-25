@@ -229,6 +229,20 @@ typedef struct {
  * protocol specific defines
  *************************************************************/
 
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+/* Private: Function pointer type for transmission done callback
+ * Called when any transmission (single-frame or multi-frame) is completed successfully
+ */
+typedef void (*isotp_tx_done_cb)(void *link, uint32_t tx_size, void *user_arg);
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+/* Private: Function pointer type for receive done callback
+ * Called when a complete message (single-frame or multi-frame) has been received successfully
+ */
+typedef void (*isotp_rx_done_cb)(void *link, const uint8_t *data, uint32_t size, void *user_arg);
+#endif
+
 /* Private: Protocol Control Information (PCI) types, for identifying each frame of an ISO-TP message.
  */
 typedef enum {

@@ -329,10 +329,15 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
     link->send_size = size;
     link->send_offset = 0;
     (void) memcpy(link->send_buffer, payload, size);
- 
+
     if (link->send_size < 8) {
         /* send single frame */
         ret = isotp_send_single_frame(link, id);
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+        if (ret == ISOTP_RET_OK && link->tx_done_cb) {
+            link->tx_done_cb(link, link->send_size, link->tx_done_cb_arg);
+        }
+#endif
     } else {
         /* send multi-frame */
         ret = isotp_send_first_frame(link, id);
@@ -497,13 +502,27 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
         default:
             break;
     };
-    
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    /* Notify user via callback if registered */
+    if (link->receive_status == ISOTP_RECEIVE_STATUS_FULL && link->rx_done_cb != NULL) {
+        link->rx_done_cb(link, link->receive_buffer, link->receive_size, link->rx_done_cb_arg);
+        link->receive_status = ISOTP_RECEIVE_STATUS_IDLE;
+    }
+#endif
     return;
 }
 
 int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint32_t payload_size, uint32_t *out_size) {
     uint32_t copylen;
-    
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    /* If callback is registered, isotp_receive should not be used */
+    if (link->rx_done_cb != NULL) {
+        return ISOTP_RET_ERROR; /* Callback mode active, use callback instead */
+    }
+#endif
+
     if (ISOTP_RECEIVE_STATUS_FULL != link->receive_status) {
         return ISOTP_RET_NO_DATA;
     }
@@ -530,11 +549,43 @@ void isotp_init_link(IsoTpLink *link, uint32_t sendid, uint8_t *sendbuf, uint32_
     link->send_buf_size = sendbufsize;
     link->receive_buffer = recvbuf;
     link->receive_buf_size = recvbufsize;
-    
+
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+    link->tx_done_cb = NULL;
+    link->tx_done_cb_arg = NULL;
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    link->rx_done_cb = NULL;
+    link->rx_done_cb_arg = NULL;
+#endif
+
     return;
 }
 
-void isotp_poll(IsoTpLink *link) {
+void isotp_destroy_link(IsoTpLink* link)
+{
+    if (link == NULL) {
+        return;
+    }
+
+    // Clear callbacks
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+    link->tx_done_cb = NULL;
+    link->tx_done_cb_arg = NULL;
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    link->rx_done_cb = NULL;
+    link->rx_done_cb_arg = NULL;
+#endif
+
+    // Reset link state (optional, but good practice)
+    memset(link, 0, sizeof(IsoTpLink));
+}
+
+void isotp_poll(IsoTpLink* link)
+{
     int ret = 0;
 
     /* only polling when operation in progress */
@@ -558,6 +609,11 @@ void isotp_poll(IsoTpLink *link) {
                 /* check if send finish */
                 if (link->send_offset >= link->send_size) {
                     link->send_status = ISOTP_SEND_STATUS_IDLE;
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+                    if (link->tx_done_cb != NULL) {
+                        link->tx_done_cb(link, link->send_size, link->tx_done_cb_arg);
+                    }
+#endif
                 }
             } else if (ISOTP_RET_NOSPACE == ret) {
                 /* shim reported that it isn't able to send a frame at present, retry on next call */
@@ -585,3 +641,23 @@ void isotp_poll(IsoTpLink *link) {
 
     return;
 }
+
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+void isotp_set_tx_done_cb(IsoTpLink *link, isotp_tx_done_cb cb, void *arg)
+{
+    if (link != NULL) {
+        link->tx_done_cb = cb;
+        link->tx_done_cb_arg = arg;
+    }
+}
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+void isotp_set_rx_done_cb(IsoTpLink *link, isotp_rx_done_cb cb, void *arg)
+{
+    if (link != NULL) {
+        link->rx_done_cb = cb;
+        link->rx_done_cb_arg = arg;
+    }
+}
+#endif

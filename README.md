@@ -116,7 +116,6 @@ int isotp_user_send_can(
 
 ```
 
-
 #### Inclusion in your CMake project
 ```cmake
 ###
@@ -166,6 +165,8 @@ First, create some [shim](https://en.wikipedia.org/wiki/Shim_(computing)) functi
 ### API
 
 You can use isotp-c in the following way:
+
+#### Traditional polling mode
 
 ```C
     /* Alloc IsoTpLink statically in RAM */
@@ -293,6 +294,59 @@ If you need handle functional addressing, you must use two separate links, one f
             } else {
                 /* An error occured */
             }
+        }
+
+        return;
+    }
+```
+
+
+#### Event-driven mode (optional)
+
+If you enabled callback support during build, you can use event-driven programming instead of polling:
+
+```C
+    /* Optional: Set up callbacks for event-driven programming */
+    void on_message_sent(void* link, uint32_t size, void* user_arg) {
+        printf("Message transmission complete: %u bytes\n", size);
+        // Handle transmission complete event
+    }
+    
+    void on_message_received(void* link, const uint8_t* data, uint32_t size, void* user_arg) {
+        printf("Message received: %u bytes\n", size);
+        // Process received data directly - no need to call isotp_receive()
+        process_isotp_message(data, size);
+    }
+    
+    int main(void) {
+        /* Initialize CAN and other peripherals */
+        
+        /* Initialize link */
+        isotp_init_link(&g_link, 0x7TT,
+						g_isotpSendBuf, sizeof(g_isotpSendBuf), 
+						g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
+        
+        /* Set callbacks (optional - if callbacks not set, use traditional polling) */
+        isotp_set_tx_done_cb(&g_link, on_message_sent, &g_link);
+        isotp_set_rx_done_cb(&g_link, on_message_received, &g_link);
+        
+        while(1) {
+            /* Handle incoming CAN messages */
+            ret = can_receive(&id, &data, &len);
+            if (RET_OK == ret && 0x7RR == id) {
+                isotp_on_can_message(&g_link, data, len);
+            }
+            
+            /* Poll link - callbacks will be called automatically when complete */
+            isotp_poll(&g_link);
+            
+            /* Send message */
+            ret = isotp_send(&g_link, payload, payload_size);
+            if (ISOTP_RET_OK == ret) {
+                /* Send initiated - on_message_sent will be called when complete */
+            }
+            
+            /* Note: No need to poll isotp_receive() when using rx callback */
         }
 
         return;

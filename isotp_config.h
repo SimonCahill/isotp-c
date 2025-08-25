@@ -36,4 +36,10 @@
  */
 //#define ISO_TP_USER_SEND_CAN_ARG
 
+/* Enable support for transmission complete callback */
+//#define ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+
+/* Enable support for receive complete callback */
+//#define ISO_TP_RECEIVE_COMPLETE_CALLBACK
+
 #endif // ISOTPC_CONFIG_H
