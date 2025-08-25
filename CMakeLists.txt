@@ -11,6 +11,9 @@ option(isotpc_STATIC_LIBRARY_PIC "Make use of position independent code (PIC), w
 option(isotpc_PAD_CAN_FRAMES "Pad CAN frames to their full size." ON)
 set(isotpc_CAN_FRAME_PAD_VALUE "0xAA" CACHE STRING "Padding byte value to be used in CAN frames if enabled")
 option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can to better support multiple CAN interfaces." OFF)
+option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission and reception complete." OFF)
+option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
+option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -59,6 +62,20 @@ endif()
 ###
 if (isotpc_ENABLE_CAN_SEND_ARG)
     target_compile_options(isotp PRIVATE -DISO_TP_USER_SEND_CAN_ARG)
+endif()
+
+###
+# Add support for options added in #51
+###
+if (isotpc_ENABLE_TRANSCEIVE_EVENTS)
+    status(MESSAGE "[isotp-c] Enabling ISOTP events; backwards compatibility may BREAK!")
+    if (isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK)
+        target_compile_definitions(isotp PRIVATE -DISO_TP_TRANSMIT_COMPLETE_CALLBACK)
+    endif()
+
+    if (isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK)
+        target_compile_definitions(isotp PRIVATE -DISO_TP_RECEIVE_COMPLETE_CALLBACK)
+    endif()
 endif()
 
 ###
