@@ -6,6 +6,7 @@ AlignConsecutiveShortCaseStatements:
   AcrossComments: true
   AcrossEmptyLines: false
   AlignCaseColons: false
+AlignOperands: true
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 1
