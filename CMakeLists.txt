@@ -14,6 +14,7 @@ option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can
 option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission and reception complete." OFF)
 option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
+# option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -68,7 +69,7 @@ endif()
 # Add support for options added in #51
 ###
 if (isotpc_ENABLE_TRANSCEIVE_EVENTS)
-    status(MESSAGE "[isotp-c] Enabling ISOTP events; backwards compatibility may BREAK!")
+    message(STATUS "[isotp-c] Enabling ISOTP events; backwards compatibility may BREAK!")
     if (isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK)
         target_compile_definitions(isotp PRIVATE -DISO_TP_TRANSMIT_COMPLETE_CALLBACK)
     endif()
@@ -108,3 +109,11 @@ add_library(isotp_c ALIAS isotp)
 add_library(simon_cahill::isotp ALIAS isotp)
 add_library(simon_cahill::isotpc ALIAS isotp)
 add_library(simon_cahill::isotp_c ALIAS isotp)
+
+###
+# Enable testing
+###
+# if (isotpc_ENABLE_TESTING)
+#     enable_testing()
+#     add_subdirectory(test)
+# endif()
