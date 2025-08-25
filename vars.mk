@@ -14,7 +14,7 @@
 #   - C [c]
 #   - C++ [c++]
 ###
-LANG := "C++"
+LANG := "C"
 
 ###
 # STD variables.
