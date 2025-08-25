@@ -75,6 +75,8 @@ In your code:
 In some cases, it is required that a static library be used instead of a shared library.
 isotp-c supports this also, via options.
 
+> ![NOTE] This option is enabled by default when building using MSVC.
+
 Either pass `-Disotpc_STATIC_LIBRARY=ON` via command-line or `set(isotpc_STATIC_LIBRARY ON CACHE BOOL "Enable static library for isotp-c")` in your CMakeLists.txt and the library will be built as a static library (`*.a|*.lib`) for your project to include.
 
 #### Use of multiple CAN interfaces
@@ -115,6 +117,26 @@ int isotp_user_send_can(
 }
 
 ```
+
+#### Enable event-driven messaging
+
+Version 1.6.0 features a new event-driven messaging model, which is **disabled by default**.  
+In order to enable this feature, the following CMake option(s) must be passed:
+
+```cmake
+set(isotpc_ENABLE_TRANSCEIVE_EVENTS ON CACHE BOOL "Enable message events in isotp-c")
+
+# Optionally enable/disable send/receive events:
+# set(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK OFF CACHE BOOL "Optionally enables or disables sending/receiving events")
+# set(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK OFF CACHE BOOL "Optionally enables or disables sending/receiving events")
+```
+
+These options can also be passed via the command-line: `-Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON`.
+
+##### Enabling these options using Makefiles
+
+If you're still using Makefiles (**NOT** recommended for this project!), then you will have to modify the `isotp_config.h` header file and enable the options manually.  
+This is **NOT RECOMMENDED**, however, as this file will be overwritten by new versions of the library.
 
 #### Inclusion in your CMake project
 ```cmake
