@@ -14,7 +14,7 @@
 | [driftregion](https://github.com/driftregion)       |  Added support for optional CAN arguments for adapter-specific information.                    | #36    |
 | [andyneubacher](https://github.com/AndyNeubacher)   |  Added support for larger frame sizes (ISO15765-2:2016).                                       | #46    |
 | [mws262](https://github.com/mws262)                 |  Fixed snprintf format string for embedded devices (replaced %d w/ %u)                         | #47    |
-| [mws262](https://github.com/mws262)                 |  Fixed minor issues with conditional compilation regarding user-args to can_send.              | #50    |
+| [eternal-echo](https://github.com/eternal-echo)     |  Fixed minor issues with conditional compilation regarding user-args to can_send.              | #50    |
 
 Thank you everyone for contributing to this library and improving it!
 Have you contributed and I've forgotten to mention you? Please let me know and I'll add you here!
