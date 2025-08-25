@@ -46,19 +46,24 @@ $(BIN)/$(LIB_NAME).$(MAJOR_VER): $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(
 	@printf "Linked $^ --> $@...\n"
 
 $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION): libisotp.o
-	if [ ! -d $(BIN) ]; then mkdir $(BIN); fi;
+	@if [ ! -d $(BIN) ]; then mkdir $(BIN); fi;
 	${COMP} $^ -o $@ ${LDFLAGS}
 	
 ###
 # Compiles the isotp.c TU to an object file. 
 ###
-libisotp.o: isotp.c
+$(BIN)/libisotp.o: isotp.c
 	${COMP} -c $^ -o $@ ${CFLAGS} -DISO_TP_FRAME_PADDING
 	
 install: all
 	@printf "Installing $(LIB_NAME) to $(INSTALL_DIR)...\n"
 	cp $(BIN)/$(LIB_NAME)* $(INSTALL_DIR)
 	@printf "Library was installed...\n"
+
+cmake:
+	@mkdir -p build
+	@cmake -B build -DCMAKE_BUILD_TYPE=Release
+	@cmake --build build --config Release
 
 ###
 # END TARGETS
