@@ -4,7 +4,7 @@ CFLAGS := -Wall -g -ggdb $(STD)
 LDFLAGS := -shared
 BIN := ./bin
 
-.PHONY: all clean fPIC no_opt $(BIN)/$(LIB_NAME) $(BIN)/$(LIB_NAME).$(MAJOR_VER) $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION) travis 
+.PHONY: all clean fPIC no_opt $(BIN)/$(LIB_NAME) $(BIN)/$(LIB_NAME).$(MAJOR_VER) $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION) 
 
 ###
 # BEGIN TARGETS
@@ -17,8 +17,6 @@ all: $(BIN)/$(LIB_NAME)
 	@printf "########## BUILT $^ ##########\n\n\n"
 	
 fPIC: CFLAGS += "-fPIC"
-	
-travis: fPIC all
 
 ###
 # Builds all targets w/o optimisations enabled
@@ -45,20 +43,26 @@ $(BIN)/$(LIB_NAME).$(MAJOR_VER): $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(
 	-ln -s $^ $@
 	@printf "Linked $^ --> $@...\n"
 
-$(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION): libisotp.o
-	if [ ! -d $(BIN) ]; then mkdir $(BIN); fi;
+$(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION): $(BIN)/libisotp.o
+	@if [ ! -d $(BIN) ]; then mkdir $(BIN); fi;
 	${COMP} $^ -o $@ ${LDFLAGS}
 	
 ###
 # Compiles the isotp.c TU to an object file. 
 ###
-libisotp.o: isotp.c
+$(BIN)/libisotp.o: isotp.c
+	@mkdir -p $(BIN)
 	${COMP} -c $^ -o $@ ${CFLAGS} -DISO_TP_FRAME_PADDING
 	
 install: all
 	@printf "Installing $(LIB_NAME) to $(INSTALL_DIR)...\n"
 	cp $(BIN)/$(LIB_NAME)* $(INSTALL_DIR)
 	@printf "Library was installed...\n"
+
+cmake:
+	@mkdir -p build
+	@cmake -B build -DCMAKE_BUILD_TYPE=Release
+	@cmake --build build --config Release
 
 ###
 # END TARGETS

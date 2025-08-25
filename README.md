@@ -75,6 +75,8 @@ In your code:
 In some cases, it is required that a static library be used instead of a shared library.
 isotp-c supports this also, via options.
 
+> ![NOTE] This option is enabled by default when building using MSVC.
+
 Either pass `-Disotpc_STATIC_LIBRARY=ON` via command-line or `set(isotpc_STATIC_LIBRARY ON CACHE BOOL "Enable static library for isotp-c")` in your CMakeLists.txt and the library will be built as a static library (`*.a|*.lib`) for your project to include.
 
 #### Use of multiple CAN interfaces
@@ -116,6 +118,25 @@ int isotp_user_send_can(
 
 ```
 
+#### Enable event-driven messaging
+
+Version 1.6.0 features a new event-driven messaging model, which is **disabled by default**.  
+In order to enable this feature, the following CMake option(s) must be passed:
+
+```cmake
+set(isotpc_ENABLE_TRANSCEIVE_EVENTS ON CACHE BOOL "Enable message events in isotp-c")
+
+# Optionally enable/disable send/receive events:
+# set(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK OFF CACHE BOOL "Optionally enables or disables sending/receiving events")
+# set(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK OFF CACHE BOOL "Optionally enables or disables sending/receiving events")
+```
+
+These options can also be passed via the command-line: `-Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON`.
+
+##### Enabling these options using Makefiles
+
+If you're still using Makefiles (**NOT** recommended for this project!), then you will have to modify the `isotp_config.h` header file and enable the options manually.  
+This is **NOT RECOMMENDED**, however, as this file will be overwritten by new versions of the library.
 
 #### Inclusion in your CMake project
 ```cmake
@@ -166,6 +187,8 @@ First, create some [shim](https://en.wikipedia.org/wiki/Shim_(computing)) functi
 ### API
 
 You can use isotp-c in the following way:
+
+#### Traditional polling mode
 
 ```C
     /* Alloc IsoTpLink statically in RAM */
@@ -293,6 +316,59 @@ If you need handle functional addressing, you must use two separate links, one f
             } else {
                 /* An error occured */
             }
+        }
+
+        return;
+    }
+```
+
+
+#### Event-driven mode (optional)
+
+If you enabled callback support during build, you can use event-driven programming instead of polling:
+
+```C
+    /* Optional: Set up callbacks for event-driven programming */
+    void on_message_sent(void* link, uint32_t size, void* user_arg) {
+        printf("Message transmission complete: %u bytes\n", size);
+        // Handle transmission complete event
+    }
+    
+    void on_message_received(void* link, const uint8_t* data, uint32_t size, void* user_arg) {
+        printf("Message received: %u bytes\n", size);
+        // Process received data directly - no need to call isotp_receive()
+        process_isotp_message(data, size);
+    }
+    
+    int main(void) {
+        /* Initialize CAN and other peripherals */
+        
+        /* Initialize link */
+        isotp_init_link(&g_link, 0x7TT,
+						g_isotpSendBuf, sizeof(g_isotpSendBuf), 
+						g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
+        
+        /* Set callbacks (optional - if callbacks not set, use traditional polling) */
+        isotp_set_tx_done_cb(&g_link, on_message_sent, &g_link);
+        isotp_set_rx_done_cb(&g_link, on_message_received, &g_link);
+        
+        while(1) {
+            /* Handle incoming CAN messages */
+            ret = can_receive(&id, &data, &len);
+            if (RET_OK == ret && 0x7RR == id) {
+                isotp_on_can_message(&g_link, data, len);
+            }
+            
+            /* Poll link - callbacks will be called automatically when complete */
+            isotp_poll(&g_link);
+            
+            /* Send message */
+            ret = isotp_send(&g_link, payload, payload_size);
+            if (ISOTP_RET_OK == ret) {
+                /* Send initiated - on_message_sent will be called when complete */
+            }
+            
+            /* Note: No need to poll isotp_receive() when using rx callback */
         }
 
         return;
