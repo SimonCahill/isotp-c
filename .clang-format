@@ -37,7 +37,7 @@ IndentGotoLabels: false
 IndentPPDirectives: BeforeHash
 IndentWidth: 4
 InsertBraces: true
-Language: Cpp
+Language: C
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: All
 PackConstructorInitializers: NextLine
