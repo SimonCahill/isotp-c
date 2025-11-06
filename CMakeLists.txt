@@ -16,6 +16,14 @@ option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callba
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 # option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 
+set(isotpc_ENABLE_CUSTOM_OPTIONS "OFF" CACHE STRING "Enable custom ISO-TP options. Set to ON to enable all options, OFF to disable all options, or CUSTOM to set individual options below.")
+set(isotpc_DEFAULT_BLOCK_SIZE "8" CACHE STRING "Default block size for flow control frames.")
+set(isotpc_DEFAULT_SEPARATION_TIME_US "0" CACHE STRING "Default separation time (in microseconds) for consecutive frames.")
+set(isotp_MAX_WFTS "1" CACHE STRING "Maximum number of wait frame transmissions before aborting the current transmission.")
+set(isotpc_DEFAULT_TIMEOUT_US "100000" CACHE STRING "Default timeout (in microseconds) for waiting on responses.")
+set(isotp_PADDING_VALUE "0xaa" CACHE STRING "Padding byte value to be used in ISO-TP frames if padding is enabled.")
+
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (isotpc_STATIC_LIBRARY OR MSVC)
@@ -40,6 +48,20 @@ else()
         -Wpedantic
         -Wextra
         -Wno-unknown-pragmas # ignore unknown pragmas, such as #pragma region
+    )
+endif()
+
+###
+# Enable custom options if required
+###
+
+if (isotpc_ENABLE_CUSTOM_OPTIONS STREQUAL ON)
+    target_compile_definitions(isotp PRIVATE
+        -DISO_TP_CUSTOM_DEFAULT_BLOCK_SIZE=${isotpc_DEFAULT_BLOCK_SIZE}
+        -DISO_TP_DEFAULT_ST_MIN_US=${isotpc_DEFAULT_SEPARATION_TIME_MS}
+        -DISO_TP_MAX_WFT_NUMBER=${isotc_MAX_WFTS}
+        -DISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=${isotpc_DEFAULT_TIMEOUT_MS}
+        -DISO_TP_FRAME_PADDING_VALUE=${isotp_PADDING_VALUE}
     )
 endif()
 
