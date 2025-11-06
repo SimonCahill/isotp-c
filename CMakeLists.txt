@@ -19,7 +19,7 @@ option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback
 set(isotpc_ENABLE_CUSTOM_OPTIONS "OFF" CACHE STRING "Enable custom ISO-TP options. Set to ON to enable all options, OFF to disable all options, or CUSTOM to set individual options below.")
 set(isotpc_DEFAULT_BLOCK_SIZE "8" CACHE STRING "Default block size for flow control frames.")
 set(isotpc_DEFAULT_SEPARATION_TIME_US "0" CACHE STRING "Default separation time (in microseconds) for consecutive frames.")
-set(isotc_MAX_WFTS "0" CACHE STRING "Maximum number of wait frame transmissions before aborting the current transmission.")
+set(isotp_MAX_WFTS "1" CACHE STRING "Maximum number of wait frame transmissions before aborting the current transmission.")
 set(isotpc_DEFAULT_TIMEOUT_US "100000" CACHE STRING "Default timeout (in microseconds) for waiting on responses.")
 set(isotp_PADDING_VALUE "0xaa" CACHE STRING "Padding byte value to be used in ISO-TP frames if padding is enabled.")
 
