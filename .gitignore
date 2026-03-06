@@ -18,3 +18,5 @@ build/
 
 html/
 /.vs
+infer-out
+.vscode
