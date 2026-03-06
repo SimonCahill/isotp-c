@@ -70,7 +70,11 @@ extern "C" {
 static thread_local IsotpTestFixture* s_currentFixture = nullptr;
 
 // Capture a raw CAN frame sent by isotp-c
-int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size) {
+int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size
+#ifdef ISO_TP_USER_SEND_CAN_ARG
+                        , void* /*arg*/
+#endif
+) {
     if (!s_currentFixture) {
         return ISOTP_RET_ERROR; // Should not happen in a properly set-up test
     }

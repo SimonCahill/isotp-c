@@ -36,6 +36,20 @@ if (isotpc_PAD_CAN_FRAMES)
     )
 endif()
 
+if (isotpc_ENABLE_CAN_SEND_ARG)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ISO_TP_USER_SEND_CAN_ARG)
+endif()
+
+if (isotpc_ENABLE_TRANSCEIVE_EVENTS)
+    if (isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE ISO_TP_TRANSMIT_COMPLETE_CALLBACK)
+    endif()
+
+    if (isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE ISO_TP_RECEIVE_COMPLETE_CALLBACK)
+    endif()
+endif()
+
 target_link_libraries(
     ${PROJECT_NAME} PRIVATE
 
