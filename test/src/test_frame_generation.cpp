@@ -4,7 +4,7 @@
  * @brief Contains unit tests for testing frame generation.
  * @version 0.1
  * @date 2025-08-25
- * * @copyright Copyright (c) 2025 Simon Cahill and Contributors.
+ * @copyright Copyright (c) 2025 Simon Cahill and Contributors.
  */
 
 #include <gtest/gtest.h>
