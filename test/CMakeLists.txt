@@ -12,6 +12,14 @@ add_executable(${PROJECT_NAME} ${TEST_SOURCES})
 
 target_compile_options(${PROJECT_NAME} PRIVATE -O0)
 
+if (isotpc_PAD_CAN_FRAMES)
+    target_compile_definitions(
+        ${PROJECT_NAME} PRIVATE
+        ISO_TP_FRAME_PADDING
+        ISO_TP_FRAME_PADDING_VALUE=${isotpc_CAN_FRAME_PAD_VALUE}
+    )
+endif()
+
 target_link_libraries(
     ${PROJECT_NAME} PRIVATE
 
