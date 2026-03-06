@@ -178,7 +178,8 @@ if (isotpc_ENABLE_TESTING)
                     --filter ${CMAKE_CURRENT_SOURCE_DIR}
                     --exclude ${CMAKE_CURRENT_SOURCE_DIR}/test
                     --print-summary
-                    --fail-under=${isotpc_COVERAGE_MIN}
+                    --txt-metric branch
+                    --fail-under-line=${isotpc_COVERAGE_MIN}
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 COMMENT "Running tests and generating coverage summary"
             )
