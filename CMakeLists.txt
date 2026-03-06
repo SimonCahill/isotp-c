@@ -32,6 +32,8 @@ option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission
 option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 # option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
+option(isotpc_ENABLE_COVERAGE "Enable coverage instrumentation (GCC/Clang only)." OFF)
+set(isotpc_COVERAGE_MIN "0" CACHE STRING "Minimum line coverage percentage required (0-100).")
 
 set(isotpc_ENABLE_CUSTOM_OPTIONS "OFF" CACHE STRING "Enable custom ISO-TP options. Set to ON to enable all options, OFF to disable all options, or CUSTOM to set individual options below.")
 set(isotpc_DEFAULT_BLOCK_SIZE "8" CACHE STRING "Default block size for flow control frames.")
@@ -42,6 +44,15 @@ set(isotp_PADDING_VALUE "0xaa" CACHE STRING "Padding byte value to be used in IS
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if (isotpc_ENABLE_COVERAGE)
+    if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(-O0 -g --coverage)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "Coverage instrumentation is only supported on GCC/Clang.")
+    endif()
+endif()
 
 if (isotpc_STATIC_LIBRARY OR MSVC)
     add_library(isotp STATIC ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
@@ -155,4 +166,24 @@ add_library(simon_cahill::isotp_c ALIAS isotp)
 if (isotpc_ENABLE_TESTING)
     enable_testing()
     add_subdirectory(test)
+
+    if (isotpc_ENABLE_COVERAGE)
+        find_program(GCOVR_EXECUTABLE gcovr)
+        if (GCOVR_EXECUTABLE)
+            add_custom_target(coverage
+                COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+                COMMAND ${GCOVR_EXECUTABLE}
+                    --root ${CMAKE_CURRENT_SOURCE_DIR}
+                    --object-directory ${CMAKE_BINARY_DIR}
+                    --filter ${CMAKE_CURRENT_SOURCE_DIR}
+                    --exclude ${CMAKE_CURRENT_SOURCE_DIR}/test
+                    --print-summary
+                    --fail-under=${isotpc_COVERAGE_MIN}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                COMMENT "Running tests and generating coverage summary"
+            )
+        else()
+            message(WARNING "gcovr not found; coverage target will be unavailable.")
+        endif()
+    endif()
 endif()
