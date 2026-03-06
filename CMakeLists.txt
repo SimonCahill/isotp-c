@@ -176,7 +176,9 @@ if (isotpc_ENABLE_TESTING)
                     --root ${CMAKE_CURRENT_SOURCE_DIR}
                     --object-directory ${CMAKE_BINARY_DIR}
                     --filter ${CMAKE_CURRENT_SOURCE_DIR}
+                    --exclude ${CMAKE_CURRENT_BINARY_DIR}
                     --exclude ${CMAKE_CURRENT_SOURCE_DIR}/test
+                    --exclude ${CMAKE_CURRENT_SOURCE_DIR}/submodules
                     --print-summary
                     --txt-metric branch
                     --fail-under-line=${isotpc_COVERAGE_MIN}
