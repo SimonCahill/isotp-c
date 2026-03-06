@@ -81,7 +81,9 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, cons
     IsotpTestFixture::TxFrame f{};
     f.id = arbitration_id;
     f.len = size > 8 ? 8 : size;
-    std::memcpy(f.data, data, f.len);
+    if (data && f.len > 0) {
+        std::memcpy(f.data, data, f.len);
+    }
     s_currentFixture->tx_frames.push_back(f);
     return ISOTP_RET_OK;
 }
@@ -207,7 +209,11 @@ TEST_F(IsotpTestFixture, Send_SingleFrame) {
 
     ASSERT_EQ(1u, tx_frames.size());
     EXPECT_EQ(0x700u, tx_frames[0].id);
+#ifdef ISO_TP_FRAME_PADDING
+    ASSERT_EQ(8, tx_frames[0].len);
+#else
     ASSERT_EQ(4, tx_frames[0].len);
+#endif
     EXPECT_EQ((0x00 | sizeof(payload)), tx_frames[0].data[0]);
     EXPECT_EQ(0, std::memcmp(payload, &tx_frames[0].data[1], sizeof(payload)));
 }
@@ -284,4 +290,431 @@ TEST_F(IsotpTestFixture, Loopback_EndToEnd_SendToRxLink) {
     ASSERT_EQ(ISOTP_RET_OK, isotp_receive(&rx, out, sizeof(out), &out_size));
     EXPECT_EQ(sizeof(payload), out_size);
     EXPECT_EQ(0, std::memcmp(payload, out, sizeof(payload)));
+}
+
+TEST_F(IsotpTestFixture, Send_WithNullLink_ReturnsError) {
+    const uint8_t payload[1] = {0x01};
+    EXPECT_EQ(ISOTP_RET_ERROR, isotp_send_with_id(nullptr, 0x123u, payload, sizeof(payload)));
+}
+
+TEST_F(IsotpTestFixture, Send_TooLargePayload_ReturnsOverflow) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[4]{}, sendbuf[4]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+
+    uint8_t payload[8] = {0};
+    EXPECT_EQ(ISOTP_RET_OVERFLOW, isotp_send(&link, payload, sizeof(payload)));
+}
+
+TEST_F(IsotpTestFixture, Send_WhenInProgress_ReturnsInProgress) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+
+    uint8_t payload[1] = {0xAB};
+    EXPECT_EQ(ISOTP_RET_INPROGRESS, isotp_send(&link, payload, sizeof(payload)));
+}
+
+TEST_F(IsotpTestFixture, Receive_FirstFrameOverflow_SendsOverflowFC) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[8]{}, sendbuf[8]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+
+    uint8_t ff[8]{};
+    uint8_t first6[6] = {0};
+    MakeFF(ff, 20, first6);
+
+    isotp_on_can_message(&link, ff, 8);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW, link.receive_protocol_result);
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+    ASSERT_EQ(1u, tx_frames.size());
+    EXPECT_EQ(ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME, tx_frames[0].data[0] >> 4);
+    EXPECT_EQ(PCI_FLOW_STATUS_OVERFLOW, tx_frames[0].data[0] & 0x0F);
+}
+
+TEST_F(IsotpTestFixture, FlowControlWait_ExceedsMaxWft) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+    link.send_wtf_count = ISO_TP_MAX_WFT_NUMBER;
+
+    uint8_t fc[8]{};
+    fc[0] = 0x30 | PCI_FLOW_STATUS_WAIT;
+    fc[1] = 0;
+    fc[2] = 0;
+    isotp_on_can_message(&link, fc, 3);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_WFT_OVRN, link.send_protocol_result);
+    EXPECT_EQ(ISOTP_SEND_STATUS_ERROR, link.send_status);
+}
+
+TEST_F(IsotpTestFixture, Poll_SendTimeout_SetsError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+    link.send_bs_remain = 0;
+    link.send_timer_bs = 10;
+    fake_us = 100;
+
+    isotp_poll(&link);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_TIMEOUT_BS, link.send_protocol_result);
+    EXPECT_EQ(ISOTP_SEND_STATUS_ERROR, link.send_status);
+}
+
+TEST_F(IsotpTestFixture, Poll_ReceiveTimeout_SetsIdle) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
+    link.receive_timer_cr = 10;
+    fake_us = 100;
+
+    isotp_poll(&link);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_TIMEOUT_CR, link.receive_protocol_result);
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+}
+
+TEST_F(IsotpTestFixture, Receive_SingleFrameTooShort_ReturnsLengthError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+
+    uint8_t sf[8]{};
+    sf[0] = 0x03; // SF with length 3
+    isotp_on_can_message(&link, sf, 2); // too short
+
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+}
+
+TEST_F(IsotpTestFixture, Receive_SingleFrameLengthZero_ReturnsLengthError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+
+    uint8_t sf[8]{};
+    sf[0] = 0x00; // SF with length 0
+    isotp_on_can_message(&link, sf, 2);
+
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+}
+
+TEST_F(IsotpTestFixture, Receive_FirstFrameLengthNotEight_ReturnsLengthError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+
+    uint8_t ff[8]{};
+    uint8_t first6[6] = {0};
+    MakeFF(ff, 12, first6);
+    isotp_on_can_message(&link, ff, 7);
+
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+}
+
+TEST_F(IsotpTestFixture, Receive_FirstFramePayloadTooSmall_ReturnsLengthError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+
+    uint8_t ff[8]{};
+    uint8_t first6[6] = {0};
+    MakeFF(ff, 7, first6);
+    isotp_on_can_message(&link, ff, 8);
+
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+}
+
+TEST_F(IsotpTestFixture, Receive_LongFirstFrame_UsesLongPayloadLength) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+
+    uint8_t ff[8]{};
+    ff[0] = 0x10; // First frame, length bytes set to 0 for long packet
+    ff[1] = 0x00;
+    ff[2] = 0x00;
+    ff[3] = 0x00;
+    ff[4] = 0x00;
+    ff[5] = 0x0C; // LE32TOH -> 12
+    ff[6] = 0xAA;
+    ff[7] = 0xBB;
+
+    isotp_on_can_message(&link, ff, 8);
+
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_INPROGRESS, link.receive_status);
+    EXPECT_EQ(12u, link.receive_size);
+    EXPECT_EQ(2u, link.receive_offset);
+}
+
+TEST_F(IsotpTestFixture, Receive_SingleFrameWhileInProgress_SetsUnexpectedPdu) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+    link.receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
+
+    uint8_t sf[8]{};
+    sf[0] = 0x01;
+    sf[1] = 0xAB;
+    isotp_on_can_message(&link, sf, 2);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_UNEXP_PDU, link.receive_protocol_result);
+}
+
+TEST_F(IsotpTestFixture, Receive_FirstFrameWhileInProgress_SetsUnexpectedPdu) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+    link.receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
+
+    uint8_t ff[8]{};
+    uint8_t first6[6] = {0};
+    MakeFF(ff, 12, first6);
+    isotp_on_can_message(&link, ff, 8);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_UNEXP_PDU, link.receive_protocol_result);
+}
+
+TEST_F(IsotpTestFixture, Receive_ConsecutiveFrameWrongSn_SetsError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+    link.receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
+    link.receive_sn = 1;
+    link.receive_size = 10;
+    link.receive_offset = 0;
+
+    uint8_t cf[8]{};
+    MakeCF(cf, 0x2, sendbuf, 1);
+    isotp_on_can_message(&link, cf, 2);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_WRONG_SN, link.receive_protocol_result);
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+}
+
+TEST_F(IsotpTestFixture, Receive_ConsecutiveFrameTooShort_DoesNotAdvance) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.receive_arbitration_id = 0x701u;
+    link.receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
+    link.receive_sn = 1;
+    link.receive_size = 10;
+    link.receive_offset = 0;
+
+    uint8_t cf[8]{};
+    MakeCF(cf, 0x1, sendbuf, 1);
+    isotp_on_can_message(&link, cf, 2);
+
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_INPROGRESS, link.receive_status);
+}
+
+TEST_F(IsotpTestFixture, FlowControlIgnoredWhenSendIdle) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+
+    uint8_t fc[8]{};
+    fc[0] = 0x30 | PCI_FLOW_STATUS_CONTINUE;
+    fc[1] = 1;
+    fc[2] = 0;
+    isotp_on_can_message(&link, fc, 3);
+
+    EXPECT_EQ(ISOTP_SEND_STATUS_IDLE, link.send_status);
+}
+
+TEST_F(IsotpTestFixture, FlowControlContinueUpdatesStMinAndBlockSize) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+
+    uint8_t fc[8]{};
+    fc[0] = 0x30 | PCI_FLOW_STATUS_CONTINUE;
+    fc[1] = 0;    // BS = 0 -> invalid
+    fc[2] = 0xF1; // 100us
+    isotp_on_can_message(&link, fc, 3);
+
+    EXPECT_EQ(ISOTP_INVALID_BS, link.send_bs_remain);
+    EXPECT_EQ(100u, link.send_st_min_us);
+}
+
+TEST_F(IsotpTestFixture, FlowControlContinueWithBlockSize) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+
+    uint8_t fc[8]{};
+    fc[0] = 0x30 | PCI_FLOW_STATUS_CONTINUE;
+    fc[1] = 2;
+    fc[2] = 0x00;
+    isotp_on_can_message(&link, fc, 3);
+
+    EXPECT_EQ(2u, link.send_bs_remain);
+    EXPECT_EQ(0u, link.send_st_min_us);
+}
+
+TEST_F(IsotpTestFixture, FlowControlOverflowSetsError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+
+    uint8_t fc[8]{};
+    fc[0] = 0x30 | PCI_FLOW_STATUS_OVERFLOW;
+    fc[1] = 0;
+    fc[2] = 0;
+    isotp_on_can_message(&link, fc, 3);
+
+    EXPECT_EQ(ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW, link.send_protocol_result);
+    EXPECT_EQ(ISOTP_SEND_STATUS_ERROR, link.send_status);
+}
+
+TEST_F(IsotpTestFixture, FlowControlTooShortDoesNotUpdate) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[32]{}, sendbuf[32]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+
+    uint8_t fc[8]{};
+    fc[0] = 0x30 | PCI_FLOW_STATUS_CONTINUE;
+    fc[1] = 1;
+    isotp_on_can_message(&link, fc, 2);
+
+    EXPECT_EQ(ISOTP_SEND_STATUS_INPROGRESS, link.send_status);
+}
+
+TEST_F(IsotpTestFixture, OnCanMessageLengthOutOfRangeIsIgnored) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[16]{}, sendbuf[16]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+
+    uint8_t data[8]{};
+    isotp_on_can_message(&link, data, 1);
+    isotp_on_can_message(&link, data, 9);
+
+    EXPECT_EQ(ISOTP_RECEIVE_STATUS_IDLE, link.receive_status);
+    EXPECT_EQ(ISOTP_SEND_STATUS_IDLE, link.send_status);
+}
+
+TEST_F(IsotpTestFixture, PollSendNoSpaceDoesNotError) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[64]{}, sendbuf[64]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+    link.send_size = 20;
+    link.send_offset = 0;
+    link.send_sn = 1;
+    link.send_bs_remain = ISOTP_INVALID_BS;
+    link.send_timer_st = 0;
+    link.send_st_min_us = 0;
+
+    tx_frames.resize(4096);
+
+    isotp_poll(&link);
+
+    EXPECT_EQ(ISOTP_SEND_STATUS_INPROGRESS, link.send_status);
+}
+
+TEST_F(IsotpTestFixture, PollSendErrorSetsErrorStatus) {
+    s_currentFixture = this;
+
+    static IsoTpLink link{};
+    static uint8_t recvbuf[64]{}, sendbuf[64]{};
+
+    isotp_init_link(&link, 0x700u, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+    link.send_status = ISOTP_SEND_STATUS_INPROGRESS;
+    link.send_size = 20;
+    link.send_offset = 0;
+    link.send_sn = 1;
+    link.send_bs_remain = ISOTP_INVALID_BS;
+    link.send_timer_st = 0;
+    link.send_st_min_us = 0;
+
+    s_currentFixture = nullptr;
+    isotp_poll(&link);
+    s_currentFixture = this;
+
+    EXPECT_EQ(ISOTP_SEND_STATUS_ERROR, link.send_status);
 }
