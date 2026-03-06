@@ -9,6 +9,7 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  COVERAGE_MIN: 80
 
 jobs:
   build:
@@ -40,4 +41,30 @@ jobs:
       # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest -C ${{env.BUILD_TYPE}}
+
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Checkout Submodules
+      run: git submodule update --init --recursive
+
+    - name: Install gcovr
+      run: python -m pip install --upgrade pip gcovr
+
+    - name: Configure CMake (coverage)
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -Disotpc_ENABLE_TESTING=ON \
+          -Disotpc_ENABLE_COVERAGE=ON \
+          -Disotpc_COVERAGE_MIN=${{env.COVERAGE_MIN}}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config Debug
+
+    - name: Coverage
+      run: cmake --build ${{github.workspace}}/build --target coverage
 
