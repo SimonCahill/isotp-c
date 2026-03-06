@@ -54,7 +54,6 @@ target_link_libraries(
     ${PROJECT_NAME} PRIVATE
 
     GTest::gtest
-    GTest::gtest_main
     simon_cahill::isotpc
 )
 
