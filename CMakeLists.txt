@@ -5,6 +5,23 @@ cmake_minimum_required(VERSION 3.10)
 ###
 project(isotp LANGUAGES C VERSION 1.6.1 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
+set(ISOTPC_LIBRARY_JSON_IN "${CMAKE_CURRENT_SOURCE_DIR}/library.json.in")
+set(ISOTPC_LIBRARY_JSON_OUT "${CMAKE_CURRENT_BINARY_DIR}/library.json")
+
+if (EXISTS "${ISOTPC_LIBRARY_JSON_IN}")
+    configure_file("${ISOTPC_LIBRARY_JSON_IN}" "${ISOTPC_LIBRARY_JSON_OUT}" @ONLY)
+
+    add_custom_target(check-library-json
+        COMMAND ${CMAKE_COMMAND} -E compare_files "${ISOTPC_LIBRARY_JSON_OUT}" "${CMAKE_CURRENT_SOURCE_DIR}/library.json"
+        COMMENT "Verifying library.json matches CMake project version"
+    )
+
+    add_custom_target(update-library-json
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ISOTPC_LIBRARY_JSON_OUT}" "${CMAKE_CURRENT_SOURCE_DIR}/library.json"
+        COMMENT "Updating library.json from CMake project version"
+    )
+endif()
+
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
 option(isotpc_STATIC_LIBRARY_PIC "Make use of position independent code (PIC), when compiling as a static library (enabled automatically when building shared libraries)." OFF)
@@ -104,7 +121,7 @@ endif()
 ###
 # Check for debug builds
 ###
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR isotpc_ENABLE_TESTING)
     target_compile_options(isotp PRIVATE -O0 -g) # don't optimise and add debugging symbols
 else()
     target_compile_options(isotp PRIVATE -O2) # optimise code
@@ -135,7 +152,7 @@ add_library(simon_cahill::isotp_c ALIAS isotp)
 ###
 # Enable testing
 ###
-# if (isotpc_ENABLE_TESTING)
-#     enable_testing()
-#     add_subdirectory(test)
-# endif()
+if (isotpc_ENABLE_TESTING)
+    enable_testing()
+    add_subdirectory(test)
+endif()

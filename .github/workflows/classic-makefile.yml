@@ -23,6 +23,12 @@ jobs:
     - name: Checkout Submodules
       run: git submodule update --init --recursive
 
+    - name: Configure CMake for version check
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Check library.json
+      run: cmake --build ${{github.workspace}}/build --target check-library-json
+
     - name: Run Makefile
       run: make all
 
