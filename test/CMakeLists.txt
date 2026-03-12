@@ -26,7 +26,10 @@ file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 
 add_executable(${PROJECT_NAME} ${TEST_SOURCES})
 
-target_compile_options(${PROJECT_NAME} PRIVATE -O0)
+target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/Od>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-O0>
+)
 
 if (isotpc_PAD_CAN_FRAMES)
     target_compile_definitions(
