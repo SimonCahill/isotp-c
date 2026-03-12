@@ -30,8 +30,15 @@ RUN python3 -m pip install --no-cache-dir lizard
 
 USER vscode
 
+# Pin oh-my-zsh to a specific commit to avoid supply-chain risks from curl|sh.
+# OMZ_COMMIT was pinned on 2026-03-10 (master HEAD at that date).
+# Update OMZ_COMMIT to a newer known-good commit hash when upgrading oh-my-zsh.
+ARG OMZ_COMMIT=8df5c1b18b1393dc5046c729094f897bd3636a9b
 RUN if [ ! -d /home/vscode/.oh-my-zsh ]; then \
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; \
+        git init /home/vscode/.oh-my-zsh \
+        && git -C /home/vscode/.oh-my-zsh fetch --depth 1 \
+            https://github.com/ohmyzsh/ohmyzsh.git "${OMZ_COMMIT}" \
+        && git -C /home/vscode/.oh-my-zsh checkout FETCH_HEAD; \
     fi \
     && if [ ! -f /home/vscode/.zshrc ]; then \
         cp /home/vscode/.oh-my-zsh/templates/zshrc.zsh-template /home/vscode/.zshrc; \
