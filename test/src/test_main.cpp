@@ -8,6 +8,7 @@
  * @copyright Copyright (c) 2025 Simon Cahill and Contributors.
  */
 
+#include <cstdint>
 #include <gtest/gtest.h>
 
 int main(int32_t argc, char** const argv) {
