@@ -156,6 +156,14 @@ target_link_libraries(
 )
 ```
 
+#### Coverage
+Coverage is enforced in CI at 80% line coverage using gcovr. You can run it locally with:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -Disotpc_ENABLE_TESTING=ON -Disotpc_ENABLE_COVERAGE=ON -Disotpc_COVERAGE_MIN=80
+cmake --build build --target coverage
+```
+
 
 ## Usage
 

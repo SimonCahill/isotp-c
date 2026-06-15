@@ -5,6 +5,23 @@ cmake_minimum_required(VERSION 3.10)
 ###
 project(isotp LANGUAGES C VERSION 1.6.1 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
+set(ISOTPC_LIBRARY_JSON_IN "${CMAKE_CURRENT_SOURCE_DIR}/library.json.in")
+set(ISOTPC_LIBRARY_JSON_OUT "${CMAKE_CURRENT_BINARY_DIR}/library.json")
+
+if (EXISTS "${ISOTPC_LIBRARY_JSON_IN}")
+    configure_file("${ISOTPC_LIBRARY_JSON_IN}" "${ISOTPC_LIBRARY_JSON_OUT}" @ONLY)
+
+    add_custom_target(check-library-json
+        COMMAND ${CMAKE_COMMAND} -E compare_files "${ISOTPC_LIBRARY_JSON_OUT}" "${CMAKE_CURRENT_SOURCE_DIR}/library.json"
+        COMMENT "Verifying library.json matches CMake project version"
+    )
+
+    add_custom_target(update-library-json
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ISOTPC_LIBRARY_JSON_OUT}" "${CMAKE_CURRENT_SOURCE_DIR}/library.json"
+        COMMENT "Updating library.json from CMake project version"
+    )
+endif()
+
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
 option(isotpc_STATIC_LIBRARY_PIC "Make use of position independent code (PIC), when compiling as a static library (enabled automatically when building shared libraries)." OFF)
@@ -15,8 +32,27 @@ option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission
 option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 # option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
+option(isotpc_ENABLE_COVERAGE "Enable coverage instrumentation (GCC/Clang only)." OFF)
+set(isotpc_COVERAGE_MIN "0" CACHE STRING "Minimum line coverage percentage required (0-100).")
+
+set(isotpc_ENABLE_CUSTOM_OPTIONS "OFF" CACHE STRING "Enable custom ISO-TP options. Set to ON to enable all options, OFF to disable all options, or CUSTOM to set individual options below.")
+set(isotpc_DEFAULT_BLOCK_SIZE "8" CACHE STRING "Default block size for flow control frames.")
+set(isotpc_DEFAULT_SEPARATION_TIME_US "0" CACHE STRING "Default separation time (in microseconds) for consecutive frames.")
+set(isotp_MAX_WFTS "1" CACHE STRING "Maximum number of wait frame transmissions before aborting the current transmission.")
+set(isotpc_DEFAULT_TIMEOUT_US "100000" CACHE STRING "Default timeout (in microseconds) for waiting on responses.")
+set(isotp_PADDING_VALUE "0xaa" CACHE STRING "Padding byte value to be used in ISO-TP frames if padding is enabled.")
+
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if (isotpc_ENABLE_COVERAGE)
+    if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(-O0 -g --coverage)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "Coverage instrumentation is only supported on GCC/Clang.")
+    endif()
+endif()
 
 if (isotpc_STATIC_LIBRARY OR MSVC)
     add_library(isotp STATIC ${CMAKE_CURRENT_SOURCE_DIR}/isotp.c)
@@ -40,6 +76,20 @@ else()
         -Wpedantic
         -Wextra
         -Wno-unknown-pragmas # ignore unknown pragmas, such as #pragma region
+    )
+endif()
+
+###
+# Enable custom options if required
+###
+
+if (isotpc_ENABLE_CUSTOM_OPTIONS STREQUAL ON)
+    target_compile_definitions(isotp PRIVATE
+        -DISO_TP_DEFAULT_BLOCK_SIZE=${isotpc_DEFAULT_BLOCK_SIZE}
+        -DISO_TP_DEFAULT_ST_MIN_US=${isotpc_DEFAULT_SEPARATION_TIME_US}
+        -DISO_TP_MAX_WFT_NUMBER=${isotp_MAX_WFTS}
+        -DISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=${isotpc_DEFAULT_TIMEOUT_US}
+        -DISO_TP_FRAME_PADDING_VALUE=${isotpc_PADDING_VALUE}
     )
 endif()
 
@@ -82,7 +132,7 @@ endif()
 ###
 # Check for debug builds
 ###
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR isotpc_ENABLE_TESTING)
     target_compile_options(isotp PRIVATE -O0 -g) # don't optimise and add debugging symbols
 else()
     target_compile_options(isotp PRIVATE -O2) # optimise code
@@ -115,7 +165,30 @@ add_library(simon_cahill::isotp_c ALIAS isotp)
 ###
 # Enable testing
 ###
-# if (isotpc_ENABLE_TESTING)
-#     enable_testing()
-#     add_subdirectory(test)
-# endif()
+if (isotpc_ENABLE_TESTING)
+    enable_testing()
+    add_subdirectory(test)
+
+    if (isotpc_ENABLE_COVERAGE)
+        find_program(GCOVR_EXECUTABLE gcovr)
+        if (GCOVR_EXECUTABLE)
+            add_custom_target(coverage
+                COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+                COMMAND ${GCOVR_EXECUTABLE}
+                    --root ${CMAKE_CURRENT_SOURCE_DIR}
+                    --object-directory ${CMAKE_BINARY_DIR}
+                    --filter ${CMAKE_CURRENT_SOURCE_DIR}
+                    --exclude ${CMAKE_CURRENT_BINARY_DIR}
+                    --exclude ${CMAKE_CURRENT_SOURCE_DIR}/test
+                    --exclude ${CMAKE_CURRENT_SOURCE_DIR}/submodules
+                    --print-summary
+                    --txt-metric branch
+                    --fail-under-line=${isotpc_COVERAGE_MIN}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                COMMENT "Running tests and generating coverage summary"
+            )
+        else()
+            message(WARNING "gcovr not found; coverage target will be unavailable.")
+        endif()
+    endif()
+endif()

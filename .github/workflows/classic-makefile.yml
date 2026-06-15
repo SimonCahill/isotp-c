@@ -9,6 +9,7 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  COVERAGE_MIN: 80
 
 jobs:
   build:
@@ -23,8 +24,24 @@ jobs:
     - name: Checkout Submodules
       run: git submodule update --init --recursive
 
+    - name: Configure CMake for version check
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Check library.json
+      run: cmake --build ${{github.workspace}}/build --target check-library-json
+
     - name: Run Makefile
       run: make all
+
+    - name: Configure CMake (tests)
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Disotpc_ENABLE_TESTING=ON
+
+    - name: Build tests
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: ctest -C ${{env.BUILD_TYPE}}
 
     # Check if bin directory was created
     - name: Check build
@@ -38,4 +55,30 @@ jobs:
           echo "Build failed: libisotp.so not found"
           exit 2
         fi
+
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Checkout Submodules
+      run: git submodule update --init --recursive
+
+    - name: Install gcovr
+      run: python -m pip install --upgrade pip gcovr
+
+    - name: Configure CMake (coverage)
+      run: |
+        cmake -B ${{github.workspace}}/build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -Disotpc_ENABLE_TESTING=ON \
+          -Disotpc_ENABLE_COVERAGE=ON \
+          -Disotpc_COVERAGE_MIN=${{env.COVERAGE_MIN}}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config Debug
+
+    - name: Coverage
+      run: cmake --build ${{github.workspace}}/build --target coverage
 

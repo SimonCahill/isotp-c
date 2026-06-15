@@ -1,0 +1,34 @@
+{
+  "name": "isotp-c",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+  ],
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
+      "extensions": [
+        "jeff-hykin.better-cpp-syntax",
+        "ms-vscode.cpptools",
+        "jbenden.c-cpp-flylint",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "justusrijke.cppcheck-lite",
+        "cschlosser.doxdocgen",
+        "github.vscode-github-actions",
+        "openningia.vscode-google-test-adapter",
+        "hbenl.vscode-test-explorer",
+        "webfreak.debug",
+        "sonarsource.sonarlint-vscode",
+        "ms-vscode.test-adapter-converter",
+        "gruntfuggly.todo-tree",
+        "brobeson.vscode-lizard"
+      ]
+    }
+  }
+}
