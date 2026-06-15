@@ -86,7 +86,9 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(isotp PRIVATE -O0 -g) # don't optimise and add debugging symbols
 else()
     target_compile_options(isotp PRIVATE -O2) # optimise code
-    target_link_libraries(isotp PRIVATE -s) # strip the library
+    if (NOT isotpc_STATIC_LIBRARY AND NOT MSVC)
+        target_link_libraries(isotp PRIVATE -s) # strip the library
+    endif()
 endif()
 
 if (isotpc_USE_INCLUDE_DIR)

@@ -16,6 +16,7 @@
 | [mws262](https://github.com/mws262)                 |  Fixed snprintf format string for embedded devices (replaced %d w/ %u)                         | #47    |
 | [eternal-echo](https://github.com/eternal-echo)     |  Fixed minor issues with conditional compilation regarding user-args to can_send.              | #50    |
 | [markxoe](https://github.com/markxoe)               |  ISOTP settings are now configurable at build time.                                            | #54    |
+| [speedy-h](https://github.com/speedy-h)             |  Don't propagate link option to dependents                                                     | #63    |
 
 Thank you everyone for contributing to this library and improving it!
 Have you contributed and I've forgotten to mention you? Please let me know and I'll add you here!

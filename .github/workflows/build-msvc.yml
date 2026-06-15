@@ -9,7 +9,7 @@ on:
 jobs:
   build_standard:
     name: Build with MSVC via CMake
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Check out repository
@@ -30,7 +30,7 @@ jobs:
   
   build_w_custom_can_arg:
     name: Build with MSVC via CMake; enabled user-CAN-arg
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Check out repository
@@ -52,7 +52,7 @@ jobs:
   
   build_standard_w_events:
     name: Build with MSVC via CMake
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Check out repository
@@ -75,7 +75,7 @@ jobs:
   
   build_w_custom_can_arg_w_events:
     name: Build with MSVC via CMake; enabled user-CAN-arg
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Check out repository
