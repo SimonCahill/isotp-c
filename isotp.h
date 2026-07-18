@@ -10,6 +10,7 @@
 #define ISOTPC_H
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 
 #ifdef __cplusplus
@@ -66,6 +67,13 @@ typedef struct IsoTpLink {
                                     end at receive FC */
     int                 receive_protocol_result;
     uint8_t             receive_status;
+
+#ifdef ISO_TP_ENABLE_STREAMING
+    uint32_t            receive_stream_size; /* Bytes currently available in receive_buffer */
+    uint8_t             receive_streaming;   /* The current message is larger than receive_buffer */
+    uint8_t             receive_stream_carry_size;
+    uint8_t             receive_stream_carry[7]; /* Remainder of a CF crossing a chunk boundary */
+#endif
 
 #if defined(ISO_TP_USER_SEND_CAN_ARG)
     void*               user_send_can_arg;
@@ -154,6 +162,28 @@ int isotp_send_with_id(IsoTpLink* link, uint32_t id, const uint8_t payload[], ui
  *      - @link ISOTP_RET_NO_DATA @endlink
  */
 int isotp_receive(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size, uint32_t* out_size);
+
+#ifdef ISO_TP_ENABLE_STREAMING
+/**
+ * @brief Receives the next available chunk of an ISO-TP message.
+ *
+ * When an incoming multi-frame message is larger than the link's receive
+ * buffer, reception is paused using ISO-TP flow control whenever that buffer
+ * is full. Calling this function consumes the buffered chunk and allows the
+ * sender to continue. The function may also be used for messages which fit in
+ * the receive buffer.
+ *
+ * @param link The @link IsoTpLink @endlink instance used to receive data.
+ * @param payload Destination for the available chunk.
+ * @param payload_size Size of the destination buffer.
+ * @param out_size Receives the number of bytes copied to @p payload.
+ * @param is_complete Set to true when the returned chunk ends the message.
+ *
+ * @return @link ISOTP_RET_OK @endlink, @link ISOTP_RET_NO_DATA @endlink,
+ *         @link ISOTP_RET_NOSPACE @endlink, or @link ISOTP_RET_ERROR @endlink.
+ */
+int isotp_receive_streaming(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size, uint32_t* out_size, bool* is_complete);
+#endif
 
 #ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
 /**

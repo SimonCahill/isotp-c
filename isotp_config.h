@@ -63,4 +63,9 @@
 /* Enable support for receive complete callback */
 // #define ISO_TP_RECEIVE_COMPLETE_CALLBACK
 
+/* Enable support for receiving messages larger than the receive buffer in
+ * application-consumable chunks.
+ */
+// #define ISO_TP_ENABLE_STREAMING
+
 #endif // ISOTPC_CONFIG_H
