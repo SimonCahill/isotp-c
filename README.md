@@ -46,6 +46,20 @@ If your projects use a different build system, you are more than welcome to incl
 
 The Makefile generator for isotpc will automatically detect whether or not your build system is using the `Debug` or `Release` build type and will adjust compiler parameters accordingly.
 
+#### Unit tests
+
+The unit suite includes mocked CAN transmission, timing, debugging, and
+receive-callback shims. Enable it with CMake and run it through CTest:
+
+```bash
+cmake -S . -B build -Disotpc_ENABLE_TESTING=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The streaming test subject enables streaming and receive callbacks
+independently of the options used for the normal library target.
+
 #### Debug Build
 If your project is configured to build as `Debug`, then the library will be compiled with **no** optimisations and **with** debug symbols.  
 `-DCMAKE_BUILD_TYPE=Debug`
@@ -252,6 +266,39 @@ You can use isotp-c in the following way:
     
 You can call isotp_poll as frequently as you want, as it internally uses isotp_user_get_ms to measure timeout occurences.
 If you need handle functional addressing, you must use two separate links, one for each.
+
+#### Streaming receive mode (optional)
+
+Enable `isotpc_ENABLE_STREAMING` to receive a message larger than the link's
+receive buffer without allocating space for the complete message:
+
+```cmake
+set(isotpc_ENABLE_STREAMING ON CACHE BOOL "Enable chunked ISO-TP reception")
+```
+
+Call `isotp_receive_streaming()` in the same polling loop used for
+`isotp_receive()`. Each successful call returns the next chunk. The library
+uses flow control to pause the sender whenever the internal receive buffer is
+full, and resumes reception after the application consumes that chunk.
+
+```C
+bool message_complete;
+uint32_t chunk_size;
+
+ret = isotp_receive_streaming(&g_link, chunk, sizeof(chunk),
+                              &chunk_size, &message_complete);
+if (ret == ISOTP_RET_OK) {
+    write_chunk_to_flash(chunk, chunk_size);
+    if (message_complete) {
+        finish_update();
+    }
+}
+```
+
+When building without CMake, define `ISO_TP_ENABLE_STREAMING` in
+`isotp_config.h`. The feature is disabled by default and does not change the
+link structure or public API unless enabled. Oversized messages use the
+streaming polling API even when receive callbacks are configured.
 
 ```C
     /* Alloc IsoTpLink statically in RAM */

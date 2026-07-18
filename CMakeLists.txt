@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 ###
 # Project definition
 ###
-project(isotp LANGUAGES C VERSION 1.6.4 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
+project(isotp LANGUAGES C VERSION 1.7.0 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
@@ -14,7 +14,8 @@ option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can
 option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission and reception complete." OFF)
 option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
-# option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
+option(isotpc_ENABLE_STREAMING "Enable chunked reception of messages larger than the receive buffer." OFF)
+option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -79,6 +80,10 @@ if (isotpc_ENABLE_TRANSCEIVE_EVENTS)
     endif()
 endif()
 
+if (isotpc_ENABLE_STREAMING)
+    target_compile_definitions(isotp PUBLIC -DISO_TP_ENABLE_STREAMING)
+endif()
+
 ###
 # Check for debug builds
 ###
@@ -115,7 +120,7 @@ add_library(simon_cahill::isotp_c ALIAS isotp)
 ###
 # Enable testing
 ###
-# if (isotpc_ENABLE_TESTING)
-#     enable_testing()
-#     add_subdirectory(test)
-# endif()
+if (isotpc_ENABLE_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

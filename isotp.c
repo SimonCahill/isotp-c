@@ -210,13 +210,22 @@ static int isotp_receive_single_frame(IsoTpLink* link, const IsoTpCanMessage* me
     /* copying data */
     (void)memcpy(link->receive_buffer, message->as.single_frame.data, message->as.single_frame.SF_DL);
     link->receive_size = message->as.single_frame.SF_DL;
+    link->receive_offset = link->receive_size;
+
+#ifdef ISO_TP_ENABLE_STREAMING
+    link->receive_stream_size       = link->receive_size;
+    link->receive_streaming         = 0;
+    link->receive_stream_carry_size = 0;
+#endif
 
     return ISOTP_RET_OK;
 }
 
 static int isotp_receive_first_frame(IsoTpLink* link, IsoTpCanMessage* message, uint8_t len) {
-    uint8_t  is_long_packet = 0;
-    uint32_t payload_length;
+    const uint8_t* first_frame_data;
+    uint8_t        is_long_packet = 0;
+    uint32_t       first_frame_data_length;
+    uint32_t       payload_length;
 
     if (8 != len) {
         isotp_user_debug("First frame should be 8 bytes in length.");
@@ -239,22 +248,48 @@ static int isotp_receive_first_frame(IsoTpLink* link, IsoTpCanMessage* message, 
         return ISOTP_RET_LENGTH;
     }
 
+#ifndef ISO_TP_ENABLE_STREAMING
     if (payload_length > link->receive_buf_size) {
         isotp_user_debug("Multi-frame response too large for receiving buffer.");
         return ISOTP_RET_OVERFLOW;
     }
+#else
+    if (link->receive_buf_size == 0) {
+        isotp_user_debug("Receiving buffer must not be empty.");
+        return ISOTP_RET_OVERFLOW;
+    }
+
+    link->receive_streaming         = payload_length > link->receive_buf_size;
+    link->receive_stream_size       = 0;
+    link->receive_stream_carry_size = 0;
+#endif
 
     /* copying data */
     if (is_long_packet) {
-        (void)memcpy(link->receive_buffer, message->as.first_frame_long.data, sizeof(message->as.first_frame_long.data));
-        link->receive_offset = sizeof(message->as.first_frame_long.data);
+        first_frame_data        = message->as.first_frame_long.data;
+        first_frame_data_length = sizeof(message->as.first_frame_long.data);
     } else {
-        (void)memcpy(link->receive_buffer, message->as.first_frame_short.data, sizeof(message->as.first_frame_short.data));
-        link->receive_offset = sizeof(message->as.first_frame_short.data);
+        first_frame_data        = message->as.first_frame_short.data;
+        first_frame_data_length = sizeof(message->as.first_frame_short.data);
     }
 
-    link->receive_size = payload_length;
-    link->receive_sn   = 1;
+#ifdef ISO_TP_ENABLE_STREAMING
+    if (first_frame_data_length > link->receive_buf_size) {
+        (void)memcpy(link->receive_buffer, first_frame_data, link->receive_buf_size);
+        link->receive_stream_size       = link->receive_buf_size;
+        link->receive_stream_carry_size = (uint8_t)(first_frame_data_length - link->receive_buf_size);
+        (void)memcpy(link->receive_stream_carry, first_frame_data + link->receive_buf_size, link->receive_stream_carry_size);
+    } else {
+        (void)memcpy(link->receive_buffer, first_frame_data, first_frame_data_length);
+        link->receive_stream_size = first_frame_data_length;
+    }
+#else
+    (void)memcpy(link->receive_buffer, first_frame_data, first_frame_data_length);
+#endif
+
+    link->receive_offset = first_frame_data_length;
+    link->receive_size   = payload_length;
+    link->receive_sn     = 1;
 
     return ISOTP_RET_OK;
 }
@@ -273,8 +308,24 @@ static int isotp_receive_consecutive_frame(IsoTpLink* link, const IsoTpCanMessag
         return ISOTP_RET_LENGTH;
     }
 
-    /* copying data */
-    (void)memcpy(link->receive_buffer + link->receive_offset, message->as.consecutive_frame.data, remaining_bytes);
+#ifdef ISO_TP_ENABLE_STREAMING
+    if (link->receive_streaming) {
+        uint32_t available = link->receive_buf_size - link->receive_stream_size;
+        uint32_t copy_size = remaining_bytes < available ? remaining_bytes : available;
+
+        (void)memcpy(link->receive_buffer + link->receive_stream_size, message->as.consecutive_frame.data, copy_size);
+        link->receive_stream_size += copy_size;
+
+        link->receive_stream_carry_size = (uint8_t)(remaining_bytes - copy_size);
+        if (link->receive_stream_carry_size > 0) {
+            (void)memcpy(link->receive_stream_carry, message->as.consecutive_frame.data + copy_size, link->receive_stream_carry_size);
+        }
+    } else
+#endif
+    {
+        /* copying data */
+        (void)memcpy(link->receive_buffer + link->receive_offset, message->as.consecutive_frame.data, remaining_bytes);
+    }
 
     link->receive_offset += remaining_bytes;
     if (++(link->receive_sn) > 0x0F) { link->receive_sn = 0; }
@@ -410,11 +461,20 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
 
             /* if receive successful */
             if (ISOTP_RET_OK == ret) {
-                /* change status */
-                link->receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
-                /* send fc frame */
+                /* change status and send fc frame */
+#ifdef ISO_TP_ENABLE_STREAMING
+                if (link->receive_streaming && link->receive_stream_size >= link->receive_buf_size) {
+                    link->receive_status = ISOTP_RECEIVE_STATUS_FULL;
+                } else {
+                    link->receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
+                    link->receive_bs_count = link->receive_streaming ? 1 : ISO_TP_DEFAULT_BLOCK_SIZE;
+                    isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
+                }
+#else
+                link->receive_status   = ISOTP_RECEIVE_STATUS_INPROGRESS;
                 link->receive_bs_count = ISO_TP_DEFAULT_BLOCK_SIZE;
                 isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
+#endif
                 /* refresh timer cs */
                 link->receive_timer_cr = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
             }
@@ -444,12 +504,20 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
                 link->receive_timer_cr = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
 
                 /* receive finished */
-                if (link->receive_offset >= link->receive_size) {
+                if (link->receive_offset >= link->receive_size
+#ifdef ISO_TP_ENABLE_STREAMING
+                    || (link->receive_streaming && link->receive_stream_size >= link->receive_buf_size)
+#endif
+                ) {
                     link->receive_status = ISOTP_RECEIVE_STATUS_FULL;
                 } else {
                     /* send fc when bs reaches limit */
                     if (0 == --link->receive_bs_count) {
-                        link->receive_bs_count = ISO_TP_DEFAULT_BLOCK_SIZE;
+                        link->receive_bs_count =
+#ifdef ISO_TP_ENABLE_STREAMING
+                            link->receive_streaming ? 1 :
+#endif
+                            ISO_TP_DEFAULT_BLOCK_SIZE;
                         isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
                     }
                 }
@@ -504,7 +572,11 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
 
 #ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
     /* Notify user via callback if registered */
-    if (link->receive_status == ISOTP_RECEIVE_STATUS_FULL && link->rx_done_cb != NULL) {
+    if (link->receive_status == ISOTP_RECEIVE_STATUS_FULL && link->rx_done_cb != NULL
+#ifdef ISO_TP_ENABLE_STREAMING
+        && !link->receive_streaming
+#endif
+    ) {
         link->rx_done_cb(link, link->receive_buffer, link->receive_size, link->rx_done_cb_arg);
         link->receive_status = ISOTP_RECEIVE_STATUS_IDLE;
     }
@@ -520,6 +592,10 @@ int isotp_receive(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size
     if (link->rx_done_cb != NULL) { return ISOTP_RET_ERROR; /* Callback mode active, use callback instead */ }
 #endif
 
+#ifdef ISO_TP_ENABLE_STREAMING
+    if (link->receive_streaming) { return ISOTP_RET_ERROR; }
+#endif
+
     if (ISOTP_RECEIVE_STATUS_FULL != link->receive_status) { return ISOTP_RET_NO_DATA; }
 
     copylen = link->receive_size;
@@ -532,6 +608,51 @@ int isotp_receive(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size
 
     return ISOTP_RET_OK;
 }
+
+#ifdef ISO_TP_ENABLE_STREAMING
+int isotp_receive_streaming(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size, uint32_t* out_size, bool* is_complete) {
+    uint32_t copylen;
+
+    if (link == NULL || payload == NULL || out_size == NULL || is_complete == NULL) { return ISOTP_RET_ERROR; }
+    if (ISOTP_RECEIVE_STATUS_FULL != link->receive_status) { return ISOTP_RET_NO_DATA; }
+
+    copylen = link->receive_streaming ? link->receive_stream_size : link->receive_size;
+    if (payload_size < copylen) { return ISOTP_RET_NOSPACE; }
+
+    (void)memcpy(payload, link->receive_buffer, copylen);
+    *out_size    = copylen;
+    *is_complete = link->receive_offset >= link->receive_size && link->receive_stream_carry_size == 0;
+
+    if (!link->receive_streaming || *is_complete) {
+        link->receive_status    = ISOTP_RECEIVE_STATUS_IDLE;
+        link->receive_streaming = 0;
+        return ISOTP_RET_OK;
+    }
+
+    link->receive_stream_size = link->receive_stream_carry_size;
+    if (link->receive_stream_size > link->receive_buf_size) {
+        link->receive_stream_size = link->receive_buf_size;
+    }
+    if (link->receive_stream_size > 0) {
+        (void)memcpy(link->receive_buffer, link->receive_stream_carry, link->receive_stream_size);
+        link->receive_stream_carry_size -= (uint8_t)link->receive_stream_size;
+        if (link->receive_stream_carry_size > 0) {
+            (void)memmove(link->receive_stream_carry, link->receive_stream_carry + link->receive_stream_size, link->receive_stream_carry_size);
+        }
+    }
+
+    if (link->receive_stream_carry_size > 0 || link->receive_offset >= link->receive_size) {
+        link->receive_status = ISOTP_RECEIVE_STATUS_FULL;
+    } else {
+        link->receive_status   = ISOTP_RECEIVE_STATUS_INPROGRESS;
+        link->receive_bs_count = 1;
+        isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
+        link->receive_timer_cr = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
+    }
+
+    return ISOTP_RET_OK;
+}
+#endif
 
 void isotp_init_link(IsoTpLink* link, uint32_t sendid, uint8_t* sendbuf, uint32_t sendbufsize, uint8_t* recvbuf, uint32_t recvbufsize) {
     memset(link, 0, sizeof(*link));
