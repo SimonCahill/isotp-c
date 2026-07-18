@@ -46,6 +46,20 @@ If your projects use a different build system, you are more than welcome to incl
 
 The Makefile generator for isotpc will automatically detect whether or not your build system is using the `Debug` or `Release` build type and will adjust compiler parameters accordingly.
 
+#### Unit tests
+
+The unit suite includes mocked CAN transmission, timing, debugging, and
+receive-callback shims. Enable it with CMake and run it through CTest:
+
+```bash
+cmake -S . -B build -Disotpc_ENABLE_TESTING=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The streaming test subject enables streaming and receive callbacks
+independently of the options used for the normal library target.
+
 #### Debug Build
 If your project is configured to build as `Debug`, then the library will be compiled with **no** optimisations and **with** debug symbols.  
 `-DCMAKE_BUILD_TYPE=Debug`

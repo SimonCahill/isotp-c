@@ -15,7 +15,7 @@ option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission
 option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_STREAMING "Enable chunked reception of messages larger than the receive buffer." OFF)
-# option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
+option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -120,7 +120,7 @@ add_library(simon_cahill::isotp_c ALIAS isotp)
 ###
 # Enable testing
 ###
-# if (isotpc_ENABLE_TESTING)
-#     enable_testing()
-#     add_subdirectory(test)
-# endif()
+if (isotpc_ENABLE_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
