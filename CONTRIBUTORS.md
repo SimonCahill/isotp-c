@@ -17,6 +17,7 @@
 | [eternal-echo](https://github.com/eternal-echo)     |  Fixed minor issues with conditional compilation regarding user-args to can_send.              | #50    |
 | [markxoe](https://github.com/markxoe)               |  ISOTP settings are now configurable at build time.                                            | #54    |
 | [speedy-h](https://github.com/speedy-h)             |  Don't propagate link option to dependents                                                     | #63    |
+| [94xhn](https://github.com/94xhn)                   |  Fix MinGW/GCC-on-Windows build broken by _WIN32 vs __GNUC__ macro clash                       | #65    |
 
 Thank you everyone for contributing to this library and improving it!
 Have you contributed and I've forgotten to mention you? Please let me know and I'll add you here!
