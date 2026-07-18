@@ -575,7 +575,7 @@ void isotp_destroy_link(IsoTpLink* link) {
 }
 
 void isotp_poll(IsoTpLink* link) {
-    int ret = 0;
+    int ret;
 
     /* only polling when operation in progress */
     if (ISOTP_SEND_STATUS_INPROGRESS == link->send_status) {

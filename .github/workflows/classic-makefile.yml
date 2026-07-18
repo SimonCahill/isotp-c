@@ -9,6 +9,7 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  VERSION_GATE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
 
 jobs:
   build:
@@ -18,7 +19,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    
+    - name: Check version gate
+      run: make version-gate
     
     - name: Checkout Submodules
       run: git submodule update --init --recursive
@@ -38,4 +44,3 @@ jobs:
           echo "Build failed: libisotp.so not found"
           exit 2
         fi
-

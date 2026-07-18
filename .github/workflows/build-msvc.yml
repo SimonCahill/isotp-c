@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "master" ]
 
+env:
+  VERSION_GATE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+
 jobs:
   build_standard:
     name: Build with MSVC via CMake
@@ -13,7 +16,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check version gate
+        shell: bash
+        run: sh .github/scripts/check-version.sh
 
       - name: Configure CMake
         run: |
@@ -34,7 +43,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check version gate
+        shell: bash
+        run: sh .github/scripts/check-version.sh
 
       - name: Configure CMake
         run: |
@@ -56,7 +71,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check version gate
+        shell: bash
+        run: sh .github/scripts/check-version.sh
 
       - name: Configure CMake
         run: |
@@ -79,7 +100,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check version gate
+        shell: bash
+        run: sh .github/scripts/check-version.sh
 
       - name: Configure CMake
         run: |
@@ -93,4 +120,3 @@ jobs:
         run: |
           cd build
           ctest --output-on-failure --timeout 120
-
