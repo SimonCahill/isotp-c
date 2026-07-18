@@ -4,10 +4,11 @@
 
 Security updates are provided for the latest released minor version of isotp-c. Users should upgrade to the latest patch release before reporting a problem.
 
-| Version | Supported |
-| --- | --- |
-| 1.7.x | :white_check_mark: |
-| < 1.7 | :x: |
+| Version | Supported          |
+| ------- | ------------------ |
+| 1.7.x   | :white_check_mark: |
+| 1.6.x   | :white_check_mark: |
+| < 1.6   | :x:                |
 
 The `master` branch contains the latest stable development state and receives security fixes alongside supported releases.
 
