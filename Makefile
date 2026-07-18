@@ -3,8 +3,9 @@ include vars.mk
 CFLAGS := -Wall -g -ggdb $(STD)
 LDFLAGS := -shared
 BIN := ./bin
+CPPCHECK ?= cppcheck
 
-.PHONY: all clean fPIC no_opt $(BIN)/$(LIB_NAME) $(BIN)/$(LIB_NAME).$(MAJOR_VER) $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION) 
+.PHONY: all clean fPIC no_opt version-gate static-analysis travis $(BIN)/$(LIB_NAME) $(BIN)/$(LIB_NAME).$(MAJOR_VER) $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION) 
 
 ###
 # BEGIN TARGETS
@@ -28,6 +29,14 @@ no_opt: CFLAGS += -g -O0 all
 ###
 clean:
 	-rm -f *.o $(BIN)/$(LIB_NAME)*
+
+version-gate:
+	@sh .github/scripts/check-version.sh
+
+static-analysis:
+	@CPPCHECK="$(CPPCHECK)" sh .github/scripts/static-analysis.sh
+
+travis: version-gate static-analysis all
 
 ###
 # Builds all library artifacts, including all symlinks.
@@ -67,4 +76,3 @@ cmake:
 ###
 # END TARGETS
 ###
-

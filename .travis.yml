@@ -3,4 +3,8 @@ compiler:
     - gcc
     - g++
     - clang
+addons:
+    apt:
+        packages:
+            - cppcheck
 script: make travis
