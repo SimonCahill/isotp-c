@@ -14,6 +14,7 @@ fi
     --inline-suppr \
     --std=c99 \
     --suppress=missingIncludeSystem \
+    --suppress=unusedStructMember \
     isotp.c \
     isotp.h \
     isotp_config.h \
