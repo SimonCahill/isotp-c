@@ -14,6 +14,26 @@
 #ifndef ISOTPC_CONFIG_H
 #define ISOTPC_CONFIG_H
 
+/* The maximum amount of data bytes a single CAN frame may carry (CAN_DL).
+ * Classical CAN is limited to 8 bytes; CAN FD additionally allows frames of
+ * 12, 16, 20, 24, 32, 48 and 64 bytes.
+ *
+ * Set this to one of the CAN FD lengths to enable CAN FD support. This
+ * increases the size of the internal frame buffers accordingly, so leave it at
+ * 8 on platforms without CAN FD.
+ */
+#ifndef ISO_TP_MAX_CAN_FRAME_SIZE
+    #define ISO_TP_MAX_CAN_FRAME_SIZE 8
+#endif
+
+/* The CAN_DL (TX_DL) used for frames transmitted by a freshly initialised link.
+ * This may be reduced per link at runtime using isotp_set_tx_dl(), e.g. when a
+ * peer only supports Classical CAN frame lengths.
+ */
+#ifndef ISO_TP_DEFAULT_TX_DL
+    #define ISO_TP_DEFAULT_TX_DL ISO_TP_MAX_CAN_FRAME_SIZE
+#endif
+
 /* Max number of messages the receiver can receive at one time, this value
  * is affected by can driver queue length
  */
@@ -56,6 +76,19 @@
  * definition of isotp_user_send_can.
  */
 // #define ISO_TP_USER_SEND_CAN_ARG
+
+/* Private: Determines if a frame flags argument is present in the definition of
+ * isotp_user_send_can, telling the CAN driver whether a frame has to be
+ * transmitted as a CAN FD frame. Enable this if the driver cannot derive the
+ * frame format from the frame length on its own.
+ */
+// #define ISO_TP_USER_SEND_CAN_FLAGS
+
+/* Private: Determines if CAN FD frames are flagged for transmission using the
+ * data phase bit rate (bit rate switch). Only used if ISO_TP_USER_SEND_CAN_FLAGS
+ * is enabled.
+ */
+// #define ISO_TP_CAN_FD_USE_BRS
 
 /* Enable support for transmission complete callback */
 // #define ISO_TP_TRANSMIT_COMPLETE_CALLBACK

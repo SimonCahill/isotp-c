@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 ###
 # Project definition
 ###
-project(isotp LANGUAGES C VERSION 1.7.0 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
+project(isotp LANGUAGES C VERSION 1.8.0 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
@@ -11,6 +11,10 @@ option(isotpc_STATIC_LIBRARY_PIC "Make use of position independent code (PIC), w
 option(isotpc_PAD_CAN_FRAMES "Pad CAN frames to their full size." ON)
 set(isotpc_CAN_FRAME_PAD_VALUE "0xAA" CACHE STRING "Padding byte value to be used in CAN frames if enabled")
 option(isotpc_ENABLE_CAN_SEND_ARG "Adds an extra argument to isotp_user_send_can to better support multiple CAN interfaces." OFF)
+option(isotpc_ENABLE_CAN_SEND_FLAGS "Adds a frame flags argument to isotp_user_send_can, telling the CAN driver whether to send a CAN FD frame." OFF)
+option(isotpc_ENABLE_CAN_FD_BRS "Flag CAN FD frames for transmission using the data phase bit rate; requires isotpc_ENABLE_CAN_SEND_FLAGS." OFF)
+set(isotpc_MAX_CAN_FRAME_SIZE "8" CACHE STRING "Maximum CAN frame data length (CAN_DL); 8 for Classical CAN, one of 12, 16, 20, 24, 32, 48, 64 to enable CAN FD.")
+set(isotpc_DEFAULT_TX_DL "" CACHE STRING "CAN frame data length used for transmitted frames; defaults to isotpc_MAX_CAN_FRAME_SIZE.")
 option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission and reception complete." OFF)
 option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
@@ -60,10 +64,51 @@ if (isotpc_PAD_CAN_FRAMES)
 endif()
 
 ###
+# Configure the CAN frame size (CAN FD support)
+###
+set(isotpc_VALID_CAN_FRAME_SIZES 8 12 16 20 24 32 48 64)
+set_property(CACHE isotpc_MAX_CAN_FRAME_SIZE PROPERTY STRINGS ${isotpc_VALID_CAN_FRAME_SIZES})
+
+if (NOT isotpc_MAX_CAN_FRAME_SIZE IN_LIST isotpc_VALID_CAN_FRAME_SIZES)
+    message(FATAL_ERROR "[isotp-c] isotpc_MAX_CAN_FRAME_SIZE must be one of: ${isotpc_VALID_CAN_FRAME_SIZES} (got '${isotpc_MAX_CAN_FRAME_SIZE}')")
+endif()
+
+if (isotpc_DEFAULT_TX_DL STREQUAL "")
+    set(isotpc_DEFAULT_TX_DL ${isotpc_MAX_CAN_FRAME_SIZE})
+elseif (NOT isotpc_DEFAULT_TX_DL IN_LIST isotpc_VALID_CAN_FRAME_SIZES OR isotpc_DEFAULT_TX_DL GREATER isotpc_MAX_CAN_FRAME_SIZE)
+    message(FATAL_ERROR "[isotp-c] isotpc_DEFAULT_TX_DL must be one of: ${isotpc_VALID_CAN_FRAME_SIZES} and must not exceed isotpc_MAX_CAN_FRAME_SIZE (got '${isotpc_DEFAULT_TX_DL}')")
+endif()
+
+if (NOT isotpc_MAX_CAN_FRAME_SIZE EQUAL 8)
+    message(STATUS "[isotp-c] Enabling CAN FD support with a maximum frame size of ${isotpc_MAX_CAN_FRAME_SIZE} bytes")
+endif()
+
+# These definitions determine the size of the internal frame buffers, so they must
+# be visible to consumers of the library, too.
+target_compile_definitions(
+    isotp PUBLIC
+    -DISO_TP_MAX_CAN_FRAME_SIZE=${isotpc_MAX_CAN_FRAME_SIZE}
+    -DISO_TP_DEFAULT_TX_DL=${isotpc_DEFAULT_TX_DL}
+)
+
+###
 # Include additional arg in isotp_user_send_can if required
 ###
 if (isotpc_ENABLE_CAN_SEND_ARG)
     target_compile_options(isotp PRIVATE -DISO_TP_USER_SEND_CAN_ARG)
+endif()
+
+###
+# Include the frame flags arg in isotp_user_send_can if required
+###
+if (isotpc_ENABLE_CAN_SEND_FLAGS)
+    target_compile_options(isotp PRIVATE -DISO_TP_USER_SEND_CAN_FLAGS)
+
+    if (isotpc_ENABLE_CAN_FD_BRS)
+        target_compile_options(isotp PRIVATE -DISO_TP_CAN_FD_USE_BRS)
+    endif()
+elseif (isotpc_ENABLE_CAN_FD_BRS)
+    message(WARNING "[isotp-c] isotpc_ENABLE_CAN_FD_BRS has no effect without isotpc_ENABLE_CAN_SEND_FLAGS")
 endif()
 
 ###

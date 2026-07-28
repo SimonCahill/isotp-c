@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "isotp_config.h"
+
 /**************************************************************
  * compiler specific defines
  *************************************************************/
@@ -34,6 +36,35 @@
 #endif
 
 #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
+
+/**************************************************************
+ * CAN frame length (CAN_DL) defines
+ *************************************************************/
+
+/* The amount of data bytes a Classical CAN frame is able to carry */
+#define ISOTP_CAN_DL_CLASSIC 8
+
+#if (ISO_TP_MAX_CAN_FRAME_SIZE != 8) && (ISO_TP_MAX_CAN_FRAME_SIZE != 12) && (ISO_TP_MAX_CAN_FRAME_SIZE != 16) && (ISO_TP_MAX_CAN_FRAME_SIZE != 20) && \
+    (ISO_TP_MAX_CAN_FRAME_SIZE != 24) && (ISO_TP_MAX_CAN_FRAME_SIZE != 32) && (ISO_TP_MAX_CAN_FRAME_SIZE != 48) && (ISO_TP_MAX_CAN_FRAME_SIZE != 64)
+    #error "ISO_TP_MAX_CAN_FRAME_SIZE must be one of 8, 12, 16, 20, 24, 32, 48, 64"
+#endif
+
+#if (ISO_TP_DEFAULT_TX_DL > ISO_TP_MAX_CAN_FRAME_SIZE) || (ISO_TP_DEFAULT_TX_DL < ISOTP_CAN_DL_CLASSIC)
+    #error "ISO_TP_DEFAULT_TX_DL must be at least 8 and must not exceed ISO_TP_MAX_CAN_FRAME_SIZE"
+#endif
+
+/* Flags describing the format a frame has to be transmitted with. These are passed
+ * to isotp_user_send_can() if ISO_TP_USER_SEND_CAN_FLAGS is enabled.
+ */
+#define ISOTP_CAN_FRAME_FLAG_NONE 0x00 /* transmit as a Classical CAN frame */
+#define ISOTP_CAN_FRAME_FLAG_FD 0x01   /* transmit as a CAN FD frame */
+#define ISOTP_CAN_FRAME_FLAG_BRS 0x02  /* transmit using the data phase bit rate (bit rate switch) */
+
+/* Largest payload which fits into a single frame, depending on the CAN frame
+ * length (CAN_DL) in use. Frames larger than 8 bytes use the SF_DL escape
+ * sequence, which occupies an additional byte of protocol control information.
+ */
+#define ISOTP_SF_MAX_PAYLOAD(can_dl) ((can_dl) > ISOTP_CAN_DL_CLASSIC ? (uint32_t)((can_dl) - 2u) : (uint32_t)((can_dl) - 1u))
 
 /**************************************************************
  * internal used defines
@@ -76,20 +107,27 @@ typedef enum {
 typedef struct {
     uint8_t reserve_1 : 4;
     uint8_t type      : 4;
-    uint8_t reserve_2[7];
+    uint8_t reserve_2[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpPciType;
 
 typedef struct {
     uint8_t SF_DL : 4;
     uint8_t type  : 4;
-    uint8_t data[7];
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpSingleFrame;
+
+typedef struct {
+    uint8_t set_to_zero : 4;
+    uint8_t type        : 4;
+    uint8_t SF_DL;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
+} IsoTpSingleFrameEscape;
 
 typedef struct {
     uint8_t FF_DL_high : 4;
     uint8_t type       : 4;
     uint8_t FF_DL_low;
-    uint8_t data[6];
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
 } IsoTpFirstFrameShort;
 
 ISOTP_PACKED_STRUCT({
@@ -97,13 +135,13 @@ ISOTP_PACKED_STRUCT({
     uint8_t  type             : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
-    uint8_t  data[2];
+    uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
 } IsoTpFirstFrameLong);
 
 typedef struct {
     uint8_t SN   : 4;
     uint8_t type : 4;
-    uint8_t data[7];
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpConsecutiveFrame;
 
 typedef struct {
@@ -111,7 +149,7 @@ typedef struct {
     uint8_t type : 4;
     uint8_t BS;
     uint8_t STmin;
-    uint8_t reserve[5];
+    uint8_t reserve[ISO_TP_MAX_CAN_FRAME_SIZE - 3];
 } IsoTpFlowControl;
 
 #else
@@ -119,7 +157,7 @@ typedef struct {
 typedef struct {
     uint8_t type      : 4;
     uint8_t reserve_1 : 4;
-    uint8_t reserve_2[7];
+    uint8_t reserve_2[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpPciType;
 
 /*
@@ -135,8 +173,25 @@ typedef struct {
 typedef struct {
     uint8_t type  : 4;
     uint8_t SF_DL : 4;
-    uint8_t data[7];
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpSingleFrame;
+
+/*
+ * single frame using the SF_DL escape sequence (CAN FD only, CAN_DL > 8)
+ * +-------------------------+-----------------------+-----+
+ * | byte #0                 | byte #1               | ... |
+ * +-------------------------+-----------+-----------+-----+
+ * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
+ * +-------------+-----------+-----------+-----------+-----+
+ * | PCIType = 0 | unused=0  | SF_DL                 | ... |
+ * +-------------+-----------+-----------------------+-----+
+ */
+typedef struct {
+    uint8_t type        : 4;
+    uint8_t set_to_zero : 4;
+    uint8_t SF_DL;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
+} IsoTpSingleFrameEscape;
 
 /*
  * first frame short
@@ -149,10 +204,10 @@ typedef struct {
  * +-------------+-----------+-----------------------+-----+
  */
 typedef struct {
-    uint8_t FF_DL_high : 4;
     uint8_t type       : 4;
+    uint8_t FF_DL_high : 4;
     uint8_t FF_DL_low;
-    uint8_t data[6];
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
 } IsoTpFirstFrameShort;
 
 /*
@@ -166,11 +221,11 @@ typedef struct {
  * +-------------+-----------+-----------------------+---------------------------------------+
  */
 ISOTP_PACKED_STRUCT({
-    uint8_t  set_to_zero_high : 4;
     uint8_t  type             : 4;
+    uint8_t  set_to_zero_high : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
-    uint8_t  data[2];
+    uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
 } IsoTpFirstFrameLong);
 
 /*
@@ -186,7 +241,7 @@ ISOTP_PACKED_STRUCT({
 typedef struct {
     uint8_t type : 4;
     uint8_t SN   : 4;
-    uint8_t data[7];
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpConsecutiveFrame;
 
 /*
@@ -204,24 +259,25 @@ typedef struct {
     uint8_t FS   : 4;
     uint8_t BS;
     uint8_t STmin;
-    uint8_t reserve[5];
+    uint8_t reserve[ISO_TP_MAX_CAN_FRAME_SIZE - 3];
 } IsoTpFlowControl;
 
 #endif
 
 typedef struct {
-        uint8_t ptr[8];
+        uint8_t ptr[ISO_TP_MAX_CAN_FRAME_SIZE];
 } IsoTpDataArray;
 
 typedef struct {
     union {
-        IsoTpPciType          common;
-        IsoTpSingleFrame      single_frame;
-        IsoTpFirstFrameShort  first_frame_short;
-        IsoTpFirstFrameLong   first_frame_long;
-        IsoTpConsecutiveFrame consecutive_frame;
-        IsoTpFlowControl      flow_control;
-        IsoTpDataArray        data_array;
+        IsoTpPciType           common;
+        IsoTpSingleFrame       single_frame;
+        IsoTpSingleFrameEscape single_frame_escape;
+        IsoTpFirstFrameShort   first_frame_short;
+        IsoTpFirstFrameLong    first_frame_long;
+        IsoTpConsecutiveFrame  consecutive_frame;
+        IsoTpFlowControl       flow_control;
+        IsoTpDataArray         data_array;
     } as;
 } IsoTpCanMessage;
 

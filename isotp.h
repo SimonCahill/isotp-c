@@ -31,6 +31,7 @@ extern "C" {
 typedef struct IsoTpLink {
     /* sender paramters */
     uint32_t            send_arbitration_id; /* used to reply consecutive frame */
+    uint8_t             tx_dl;               /* CAN_DL of transmitted frames; 8 for Classical CAN, up to 64 for CAN FD */
 
     /* message buffer */
     uint8_t*            send_buffer;
@@ -52,6 +53,7 @@ typedef struct IsoTpLink {
 
     /* receiver paramters */
     uint32_t            receive_arbitration_id;
+    uint8_t             rx_dl;                 /* CAN_DL of the multi-frame message currently being received */
     
     /* message buffer */
     uint8_t*            receive_buffer;
@@ -72,7 +74,7 @@ typedef struct IsoTpLink {
     uint32_t            receive_stream_size; /* Bytes currently available in receive_buffer */
     uint8_t             receive_streaming;   /* The current message is larger than receive_buffer */
     uint8_t             receive_stream_carry_size;
-    uint8_t             receive_stream_carry[7]; /* Remainder of a CF crossing a chunk boundary */
+    uint8_t             receive_stream_carry[ISO_TP_MAX_CAN_FRAME_SIZE - 1]; /* Remainder of a frame crossing a chunk boundary */
 #endif
 
 #if defined(ISO_TP_USER_SEND_CAN_ARG)
@@ -100,8 +102,39 @@ typedef struct IsoTpLink {
  * @param sendbufsize The size of the buffer area.
  * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be received.
  * @param recvbufsize The size of the buffer area.
+ *
+ * @remarks The link is initialised with a transmit frame length (TX_DL) of
+ * @code ISO_TP_DEFAULT_TX_DL @endcode. Use @link isotp_set_tx_dl @endlink to change it.
  */
 void isotp_init_link(IsoTpLink* link, uint32_t sendid, uint8_t* sendbuf, uint32_t sendbufsize, uint8_t* recvbuf, uint32_t recvbufsize);
+
+/**
+ * @brief Sets the CAN frame data length (TX_DL) used for transmitted frames.
+ *
+ * Classical CAN links must use 8; CAN FD links may additionally use 12, 16, 20, 24, 32, 48 or 64.
+ * Values larger than @code ISO_TP_MAX_CAN_FRAME_SIZE @endcode are rejected, as the library is not
+ * compiled with buffers large enough to hold such frames.
+ *
+ * Received frames are always handled irrespective of this value; it only affects transmission.
+ *
+ * @param link The @code IsoTpLink @endcode instance used for transceiving data.
+ * @param tx_dl The CAN frame data length to use for transmitted frames.
+ *
+ * @return Possible return values:
+ *  - @code ISOTP_RET_OK @endcode
+ *  - @code ISOTP_RET_ERROR @endcode if the link is null or the length is not a valid CAN_DL
+ *  - @code ISOTP_RET_INPROGRESS @endcode if a multi-frame transmission is currently in progress
+ */
+int isotp_set_tx_dl(IsoTpLink* link, uint8_t tx_dl);
+
+/**
+ * @brief Gets the CAN frame data length (TX_DL) used for transmitted frames.
+ *
+ * @param link The @code IsoTpLink @endcode instance used for transceiving data.
+ *
+ * @return The configured TX_DL, or 0 if the link is null.
+ */
+uint8_t isotp_get_tx_dl(const IsoTpLink* link);
 
 /**
  * @brief Destroys the ISO-TP link and releases associated resources.
@@ -123,7 +156,8 @@ void isotp_poll(IsoTpLink* link);
  *
  * @param link The @code IsoTpLink @endcode instance used for transceiving data.
  * @param data The data received via CAN.
- * @param len The length of the data received.
+ * @param len The length of the data received. Frames longer than
+ *            @code ISO_TP_MAX_CAN_FRAME_SIZE @endcode are ignored.
  */
 void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len);
 
@@ -133,8 +167,12 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len);
  * Single-frame messages will be sent immediately when calling this function.
  * Multi-frame messages will be sent consecutively when calling isotp_poll.
  *
+ * Payloads which do not fit into a single frame (more than 7 bytes with a TX_DL of 8,
+ * more than TX_DL - 2 bytes on CAN FD links) are segmented. Messages larger than 4095
+ * bytes are sent using the escaped first frame format defined by ISO 15765-2:2016.
+ *
  * @param link The @code IsoTpLink @endcode instance used for transceiving data.
- * @param payload The payload to be sent. (Up to 4095 bytes).
+ * @param payload The payload to be sent.
  * @param size The size of the payload to be sent.
  *
  * @return Possible return values:

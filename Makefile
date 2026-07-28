@@ -61,7 +61,7 @@ $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION): $(BIN)/libisotp.o
 ###
 $(BIN)/libisotp.o: isotp.c
 	@mkdir -p $(BIN)
-	${COMP} -c $^ -o $@ ${CFLAGS} -DISO_TP_FRAME_PADDING
+	${COMP} -c $^ -o $@ ${CFLAGS} -DISO_TP_FRAME_PADDING -DISO_TP_MAX_CAN_FRAME_SIZE=$(MAX_CAN_FRAME_SIZE)
 	
 install: all
 	@printf "Installing $(LIB_NAME) to $(INSTALL_DIR)...\n"
