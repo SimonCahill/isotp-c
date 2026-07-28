@@ -62,7 +62,7 @@ jobs:
         if: always()
         run: |
           cd build
-          ctest --output-on-failure --timeout 120
+          ctest -C Release --output-on-failure --timeout 120
 
   
   build_standard_w_events:
@@ -90,7 +90,7 @@ jobs:
         if: always()
         run: |
           cd build
-          ctest --output-on-failure --timeout 120
+          ctest -C Release --output-on-failure --timeout 120
 
   
   
@@ -119,4 +119,4 @@ jobs:
         if: always()
         run: |
           cd build
-          ctest --output-on-failure --timeout 120
+          ctest -C Release --output-on-failure --timeout 120

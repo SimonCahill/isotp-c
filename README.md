@@ -14,10 +14,13 @@ This library doesn't assume anything about the source of the ISO-TP messages or 
 
 **The current version supports [ISO-15765-2](https://en.wikipedia.org/wiki/ISO_15765-2) single and multiple frame transmition, and works in Full-duplex mode.**
 
+**CAN FD frames (up to 64 bytes per frame) are supported as of version 1.7.0; see [CAN FD support](#can-fd-support).**
+
 ## Builds
 
 [![CMake](https://github.com/SimonCahill/isotp-c/actions/workflows/cmake.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/cmake.yml) 
 [![CMake w/ changes from #36](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-opt-can-arg.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-opt-can-arg.yml) 
+[![CMake w/ CAN FD support](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-can-fd.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-can-fd.yml) 
 [![Windows MSVC Build](https://github.com/SimonCahill/isotp-c/actions/workflows/build-msvc.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-msvc.yml)
 
 ## Contributors
@@ -58,7 +61,14 @@ ctest --test-dir build --output-on-failure
 ```
 
 The streaming test subject enables streaming and receive callbacks
-independently of the options used for the normal library target.
+independently of the options used for the normal library target, but follows the
+configured frame size, so that streaming is also covered on CAN FD builds.
+
+The framing suite next to it is compiled once per configuration — Classical CAN
+and CAN FD, with and without frame padding, as well as with the optional
+callbacks, the additional `isotp_user_send_can` argument, the frame flags and
+streaming — and covers segmentation, reassembly, chunked reception and the
+handling of malformed frames.
 
 #### Debug Build
 If your project is configured to build as `Debug`, then the library will be compiled with **no** optimisations and **with** debug symbols.  
@@ -92,6 +102,61 @@ isotp-c supports this also, via options.
 > ![NOTE] This option is enabled by default when building using MSVC.
 
 Either pass `-Disotpc_STATIC_LIBRARY=ON` via command-line or `set(isotpc_STATIC_LIBRARY ON CACHE BOOL "Enable static library for isotp-c")` in your CMakeLists.txt and the library will be built as a static library (`*.a|*.lib`) for your project to include.
+
+#### CAN FD support
+
+By default the library only emits Classical CAN frames of up to 8 bytes. CAN FD support is enabled by raising the maximum CAN frame data length (CAN_DL) the library is compiled for:
+
+```bash
+# 8 (default, Classical CAN) or one of 12, 16, 20, 24, 32, 48, 64
+$ cmake -B build -Disotpc_MAX_CAN_FRAME_SIZE=64
+```
+
+The same value may be set when building with Make (`make MAX_CAN_FRAME_SIZE=64 all`), or by defining `ISO_TP_MAX_CAN_FRAME_SIZE` in `isotp_config.h` if you compile the sources yourself.
+
+This value determines the size of the internal frame buffers and therefore the largest frame the library is able to send and receive. Frames larger than the configured maximum are ignored on reception.
+
+Once enabled, the following ISO 15765-2:2016 behaviour applies:
+
+* Single frames carrying more than 7 bytes use the `SF_DL` escape sequence, which allows up to `TX_DL - 2` bytes (62 bytes at a `TX_DL` of 64) to be transmitted in one frame.
+* First frames are always transmitted using the full frame length, and consecutive frames carry up to `TX_DL - 1` bytes.
+* Frames larger than 8 bytes are always padded up to the next transmittable CAN FD length (8, 12, 16, 20, 24, 32, 48, 64) using `ISO_TP_FRAME_PADDING_VALUE`, since CAN FD only supports these discrete lengths. Frames of up to 8 bytes are only padded when `ISO_TP_FRAME_PADDING` is enabled.
+* Reception adapts to the sender: the frame length of an incoming first frame defines the length expected from the following consecutive frames (`RX_DL`), so a CAN FD link happily receives Classical CAN messages, too.
+
+The frame length used for transmission (`TX_DL`) is a per-link property, which defaults to `ISO_TP_DEFAULT_TX_DL` (the configured maximum) and may be lowered at runtime — useful when talking to a peer which is limited to Classical CAN frames:
+
+```c
+isotp_init_link(&link, 0x7TT, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
+
+/* transmit Classical CAN frames on this link, even though the library supports CAN FD */
+if (ISOTP_RET_OK != isotp_set_tx_dl(&link, 8)) {
+    /* the requested length is not a valid CAN_DL, or exceeds ISO_TP_MAX_CAN_FRAME_SIZE */
+}
+```
+
+Note that `isotp_user_send_can` is handed frames of up to `TX_DL` bytes once CAN FD is enabled, so the CAN driver behind it must be set up to send CAN FD frames.
+
+CAN FD combines with the [streaming receive mode](#streaming-receive-mode-optional): a receive buffer smaller than a single CAN FD frame is supported, as the remainder of a frame crossing a chunk boundary is carried over to the next chunk.
+
+##### Signalling CAN FD frames to the CAN driver
+
+Frames of more than 8 bytes can only be CAN FD frames, so a driver may derive the frame format from the length it is given. If it needs to be told explicitly, enable `-Disotpc_ENABLE_CAN_SEND_FLAGS=ON` (`ISO_TP_USER_SEND_CAN_FLAGS`) to add a flags argument to the shim, following the same pattern as the additional CAN argument described below:
+
+```c
+int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size, const uint8_t flags) {
+    if (flags & ISOTP_CAN_FRAME_FLAG_FD) {
+        return CAN_SEND_FD(arbitration_id, data, size, (flags & ISOTP_CAN_FRAME_FLAG_BRS) != 0)
+                   ? ISOTP_RET_ERROR
+                   : ISOTP_RET_OK;
+    }
+
+    return CAN_SEND(arbitration_id, data, size) ? ISOTP_RET_ERROR : ISOTP_RET_OK;
+}
+```
+
+Every frame of a link whose `TX_DL` exceeds 8 bytes carries `ISOTP_CAN_FRAME_FLAG_FD`, including short single frames and flow control frames, so a link either speaks CAN FD or it doesn't. `ISOTP_CAN_FRAME_FLAG_BRS` is added on top of that if `-Disotpc_ENABLE_CAN_FD_BRS=ON` (`ISO_TP_CAN_FD_USE_BRS`) is set, asking the driver to transmit the data phase at the higher CAN FD bit rate.
+
+If both this option and `ISO_TP_USER_SEND_CAN_ARG` are enabled, the flags precede the user argument: `isotp_user_send_can(id, data, size, flags, arg)`.
 
 #### Use of multiple CAN interfaces
 For applications requiring multiple CAN interfaces, it is necessary to specify the interface in `isotp_user_send_can`. 
@@ -178,7 +243,9 @@ First, create some [shim](https://en.wikipedia.org/wiki/Shim_(computing)) functi
 ```C
     /* required, this must send a single CAN message with the given arbitration
      * ID (i.e. the CAN message ID) and data. The size will never be more than 8
-     * bytes. Should return ISOTP_RET_OK if frame sent successfully.
+     * bytes, or more than the link's TX_DL if CAN FD is enabled; sizes of more
+     * than 8 bytes have to be sent as a CAN FD frame.
+     * Should return ISOTP_RET_OK if frame sent successfully.
      * May return ISOTP_RET_NOSPACE if the frame could not be sent but may be
      * retried later. Should return ISOTP_RET_ERROR in case frame could not be sent.
      */

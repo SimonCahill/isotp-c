@@ -337,7 +337,10 @@ EXPAND_ONLY_PREDEF     = NO
 SEARCH_INCLUDES        = YES
 INCLUDE_PATH           =
 INCLUDE_FILE_PATTERNS  =
-PREDEFINED             =
+PREDEFINED             = ISO_TP_USER_SEND_CAN_ARG \
+                         ISO_TP_USER_SEND_CAN_FLAGS \
+                         ISO_TP_TRANSMIT_COMPLETE_CALLBACK \
+                         ISO_TP_RECEIVE_COMPLETE_CALLBACK
 EXPAND_AS_DEFINED      =
 SKIP_FUNCTION_MACROS   = YES
 #---------------------------------------------------------------------------
