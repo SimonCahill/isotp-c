@@ -4,8 +4,9 @@ CFLAGS := -Wall -g -ggdb $(STD)
 LDFLAGS := -shared
 BIN := ./bin
 CPPCHECK ?= cppcheck
+INFER ?= infer
 
-.PHONY: all clean fPIC no_opt version-gate static-analysis travis $(BIN)/$(LIB_NAME) $(BIN)/$(LIB_NAME).$(MAJOR_VER) $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION) 
+.PHONY: all clean fPIC no_opt version-gate static-analysis $(BIN)/$(LIB_NAME) $(BIN)/$(LIB_NAME).$(MAJOR_VER) $(BIN)/$(LIB_NAME).$(MAJOR_VER).$(MINOR_VER).$(REVISION)
 
 ###
 # BEGIN TARGETS
@@ -34,9 +35,7 @@ version-gate:
 	@sh .github/scripts/check-version.sh
 
 static-analysis:
-	@CPPCHECK="$(CPPCHECK)" sh .github/scripts/static-analysis.sh
-
-travis: version-gate static-analysis all
+	@CPPCHECK="$(CPPCHECK)" INFER="$(INFER)" sh .github/scripts/static-analysis.sh
 
 ###
 # Builds all library artifacts, including all symlinks.
