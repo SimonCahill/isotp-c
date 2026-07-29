@@ -45,6 +45,7 @@ analysis_status=0
 # Cppcheck intentionally does not need system headers to analyze this translation unit.
 # unusedFunction and staticFunction refer to public entry points used by library consumers.
 # Forced macro exploration can also produce unnamed callback declarations when callbacks are disabled.
+# Some of these false positives are version-specific; do not fail when an older cppcheck does not emit them.
 if ! "$CPPCHECK" \
     --enable=all \
     --inconclusive \
@@ -54,6 +55,7 @@ if ! "$CPPCHECK" \
     --inline-suppr \
     --std=c99 \
     --suppress=missingIncludeSystem \
+    --suppress=unmatchedSuppression \
     --suppress=unusedFunction \
     --suppress=staticFunction \
     --suppress=funcArgNamesDifferentUnnamed \
