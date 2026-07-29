@@ -20,6 +20,7 @@ option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callba
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_STREAMING "Enable chunked reception of messages larger than the receive buffer." OFF)
 option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
+option(isotpc_ENABLE_COVERAGE "Instrument the unit-test subjects for gcovr coverage reporting." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -166,6 +167,13 @@ add_library(simon_cahill::isotp_c ALIAS isotp)
 # Enable testing
 ###
 if (isotpc_ENABLE_TESTING)
+    if (CMAKE_VERSION VERSION_LESS 3.16)
+        message(FATAL_ERROR "[isotp-c] Unit tests require CMake 3.16 or newer")
+    endif()
+
+    enable_language(CXX)
     enable_testing()
     add_subdirectory(tests)
+elseif (isotpc_ENABLE_COVERAGE)
+    message(FATAL_ERROR "[isotp-c] isotpc_ENABLE_COVERAGE requires isotpc_ENABLE_TESTING")
 endif()

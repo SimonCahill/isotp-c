@@ -30,7 +30,7 @@ jobs:
 
   cmake_linux:
     name: Linux CMake (${{ matrix.name }})
-    needs: static_analysis
+    needs: coverage
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -65,7 +65,7 @@ jobs:
 
   cmake_windows:
     name: Windows CMake (${{ matrix.name }})
-    needs: static_analysis
+    needs: coverage
     runs-on: windows-2022
     strategy:
       fail-fast: false
@@ -98,7 +98,7 @@ jobs:
 
   makefile:
     name: Classic Makefile (CAN frame size ${{ matrix.max_can_frame_size }})
-    needs: static_analysis
+    needs: coverage
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -153,3 +153,38 @@ jobs:
 
       - name: Run static analysis gate
         run: make static-analysis
+
+  coverage:
+    name: Unit tests and coverage
+    needs: static_analysis
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install gcovr
+        run: pipx install gcovr==8.6
+
+      - name: Configure coverage build
+        run: cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Debug -Disotpc_STATIC_LIBRARY=ON -Disotpc_ENABLE_TESTING=ON -Disotpc_ENABLE_COVERAGE=ON
+
+      - name: Build unit tests
+        run: cmake --build build-coverage --parallel
+
+      - name: Run unit tests
+        working-directory: build-coverage
+        run: ctest --output-on-failure --timeout 120
+
+      - name: Enforce coverage thresholds
+        run: |
+          mkdir -p coverage
+          gcovr --object-directory build-coverage
+
+      - name: Upload coverage reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: coverage
+          if-no-files-found: warn
