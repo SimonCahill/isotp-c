@@ -25,6 +25,17 @@ cmake_version() {
     printf '%s\n' "$version"
 }
 
+library_version() {
+    version="$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"v\{0,1\}\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)"[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p' library.json)"
+
+    if [ -z "$version" ]; then
+        echo "Unable to read version from library.json" >&2
+        exit 1
+    fi
+
+    printf '%s\n' "$version"
+}
+
 version_at_ref() {
     ref="$1"
     file="$2"
@@ -34,22 +45,30 @@ version_at_ref() {
         return
     fi
 
-    if [ "$file" = "vars.mk" ]; then
-        content="$(git show "$ref:$file")"
-        major="$(printf '%s\n' "$content" | awk -F ':=' '/^MAJOR_VER[[:space:]]*:=/ { gsub(/[[:space:]\"]/, "", $2); print $2 }')"
-        minor="$(printf '%s\n' "$content" | awk -F ':=' '/^MINOR_VER[[:space:]]*:=/ { gsub(/[[:space:]\"]/, "", $2); print $2 }')"
-        revision="$(printf '%s\n' "$content" | awk -F ':=' '/^REVISION[[:space:]]*:=/ { gsub(/[[:space:]\"]/, "", $2); print $2 }')"
-        printf '%s.%s.%s\n' "$major" "$minor" "$revision"
-    else
-        git show "$ref:$file" | sed -n 's/^project(.* VERSION \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p'
-    fi
+    case "$file" in
+        vars.mk)
+            content="$(git show "$ref:$file")"
+            major="$(printf '%s\n' "$content" | awk -F ':=' '/^MAJOR_VER[[:space:]]*:=/ { gsub(/[[:space:]\"]/, "", $2); print $2 }')"
+            minor="$(printf '%s\n' "$content" | awk -F ':=' '/^MINOR_VER[[:space:]]*:=/ { gsub(/[[:space:]\"]/, "", $2); print $2 }')"
+            revision="$(printf '%s\n' "$content" | awk -F ':=' '/^REVISION[[:space:]]*:=/ { gsub(/[[:space:]\"]/, "", $2); print $2 }')"
+            printf '%s.%s.%s\n' "$major" "$minor" "$revision"
+            ;;
+        CMakeLists.txt)
+            git show "$ref:$file" | sed -n 's/^project(.* VERSION \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p'
+            ;;
+        library.json)
+            git show "$ref:$file" | sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"v\{0,1\}\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)"[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p'
+            ;;
+    esac
 }
 
 current_make_version="$(make_version)"
 current_cmake_version="$(cmake_version)"
+current_library_version="$(library_version)"
 
-if [ "$current_make_version" != "$current_cmake_version" ]; then
-    echo "Version mismatch: vars.mk has $current_make_version but CMakeLists.txt has $current_cmake_version" >&2
+if [ "$current_make_version" != "$current_cmake_version" ] ||
+    [ "$current_make_version" != "$current_library_version" ]; then
+    echo "Version mismatch: vars.mk has $current_make_version, CMakeLists.txt has $current_cmake_version, and library.json has $current_library_version" >&2
     exit 1
 fi
 
@@ -86,10 +105,13 @@ fi
 
 base_make_version="$(version_at_ref "$base_ref" vars.mk)"
 base_cmake_version="$(version_at_ref "$base_ref" CMakeLists.txt)"
+base_library_version="$(version_at_ref "$base_ref" library.json)"
 
-if [ "$base_make_version" = "$current_make_version" ] || [ "$base_cmake_version" = "$current_cmake_version" ]; then
+if [ "$base_make_version" = "$current_make_version" ] ||
+    [ "$base_cmake_version" = "$current_cmake_version" ] ||
+    [ "$base_library_version" = "$current_library_version" ]; then
     echo "Version bump required when versioned source/build files change." >&2
-    echo "Update both vars.mk and CMakeLists.txt from $base_make_version/$base_cmake_version to the same new version." >&2
+    echo "Update vars.mk, CMakeLists.txt, and library.json from $base_make_version/$base_cmake_version/$base_library_version to the same new version." >&2
     echo "Changed files requiring a bump:" >&2
     printf '%s\n' "$requires_version_bump" >&2
     exit 1
