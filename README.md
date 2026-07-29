@@ -18,10 +18,7 @@ This library doesn't assume anything about the source of the ISO-TP messages or 
 
 ## Builds
 
-[![CMake](https://github.com/SimonCahill/isotp-c/actions/workflows/cmake.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/cmake.yml) 
-[![CMake w/ changes from #36](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-opt-can-arg.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-opt-can-arg.yml) 
-[![CMake w/ CAN FD support](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-can-fd.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-w-can-fd.yml) 
-[![Windows MSVC Build](https://github.com/SimonCahill/isotp-c/actions/workflows/build-msvc.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/build-msvc.yml)
+[![CI](https://github.com/SimonCahill/isotp-c/actions/workflows/ci.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/ci.yml)
 
 ## Contributors
 
