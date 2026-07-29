@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  version_gate:
+    name: Version gate
+    runs-on: ubuntu-latest
+    env:
+      VERSION_GATE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check version gate
+        run: make version-gate
+
+  cmake_linux:
+    name: Linux CMake (${{ matrix.name }})
+    needs: static_analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: standard
+            cmake_options: ""
+          - name: custom CAN argument
+            cmake_options: -Disotpc_ENABLE_CAN_SEND_ARG=ON
+          - name: custom CAN argument and events
+            cmake_options: -Disotpc_ENABLE_CAN_SEND_ARG=ON -Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON
+          - name: CAN FD
+            cmake_options: -Disotpc_MAX_CAN_FRAME_SIZE=64
+          - name: CAN FD with all features
+            cmake_options: -Disotpc_MAX_CAN_FRAME_SIZE=64 -Disotpc_DEFAULT_TX_DL=32 -Disotpc_ENABLE_CAN_SEND_FLAGS=ON -Disotpc_ENABLE_CAN_FD_BRS=ON -Disotpc_ENABLE_CAN_SEND_ARG=ON -Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON -Disotpc_ENABLE_STREAMING=ON
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -Disotpc_ENABLE_TESTING=ON ${{ matrix.cmake_options }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Run unit tests
+        working-directory: build
+        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
+
+  cmake_windows:
+    name: Windows CMake (${{ matrix.name }})
+    needs: static_analysis
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: standard
+            cmake_options: ""
+          - name: custom CAN argument
+            cmake_options: -Disotpc_ENABLE_CAN_SEND_ARG=ON
+          - name: events
+            cmake_options: -Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON
+          - name: custom CAN argument and events
+            cmake_options: -Disotpc_ENABLE_CAN_SEND_ARG=ON -Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -Disotpc_ENABLE_TESTING=ON ${{ matrix.cmake_options }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} -- /m
+
+      - name: Run unit tests
+        working-directory: build
+        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
+
+  makefile:
+    name: Classic Makefile (CAN frame size ${{ matrix.max_can_frame_size }})
+    needs: static_analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        max_can_frame_size: [8, 64]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build
+        run: make MAX_CAN_FRAME_SIZE=${{ matrix.max_can_frame_size }} all
+
+      - name: Check build output
+        run: |
+          if [ ! -d "bin" ]; then
+            echo "Build failed: bin directory not found"
+            exit 1
+          fi
+
+          if [ ! -L "bin/libisotp.so" ]; then
+            echo "Build failed: libisotp.so symlink not found"
+            exit 2
+          fi
+
+  static_analysis:
+    name: Static analysis
+    needs: version_gate
+    runs-on: ubuntu-24.04
+    env:
+      INFER_VERSION: 1.3.0
+      INFER_SHA256: 02be62ba931cb43e2d42bbf7abf4bd9a410cf8464cce5453934e25c90a825850
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install cppcheck and Infer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck xz-utils
+
+          infer_archive="${RUNNER_TEMP}/infer-linux-x86_64-v${INFER_VERSION}.tar.xz"
+          curl --fail --location --silent --show-error \
+            "https://github.com/facebook/infer/releases/download/v${INFER_VERSION}/infer-linux-x86_64-v${INFER_VERSION}.tar.xz" \
+            --output "${infer_archive}"
+          echo "${INFER_SHA256}  ${infer_archive}" | sha256sum --check -
+          tar --extract --xz --file "${infer_archive}" --directory "${RUNNER_TEMP}"
+          echo "${RUNNER_TEMP}/infer-linux-x86_64-v${INFER_VERSION}/bin" >> "${GITHUB_PATH}"
+
+      - name: Run static analysis gate
+        run: make static-analysis
