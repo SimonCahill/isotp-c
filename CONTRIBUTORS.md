@@ -19,6 +19,7 @@
 | [speedy-h](https://github.com/speedy-h)             |  Don't propagate link option to dependents                                                     | #63    |
 | [94xhn](https://github.com/94xhn)                   |  Fix MinGW/GCC-on-Windows build broken by _WIN32 vs __GNUC__ macro clash                       | #65    |
 | [mccre110](https://github.com/mccre110)             |  Added support for CAN-FD.                                                                     | #69    |
+| [jerry73204](https://github.com/jerry73204)         |  Added ISO_TP_NO_FORMATTED_ERRORS to drop the snprintf dependency.                              | #75    |
 
 Thank you everyone for contributing to this library and improving it!
 Have you contributed and I've forgotten to mention you? Please let me know and I'll add you here!
