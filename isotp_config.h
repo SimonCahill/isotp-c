@@ -66,6 +66,18 @@
  */
 // #define ISO_TP_FRAME_PADDING
 
+/* Private: Omit the two formatted error messages, which are the library's only
+ * use of snprintf(). Define this on a target whose libc has no snprintf, or
+ * where the 128-byte ISOTP_MAX_ERROR_MSG_SIZE stack buffer is unwelcome. The
+ * errors are still reported through isotp_user_debug(), without the values.
+ *
+ * Measured on Cortex-M4, -Os -DNDEBUG: .text 2235 -> 2091 bytes, and the
+ * largest stack frame 160 -> 32 bytes. With this and NDEBUG the object needs
+ * nothing from libc but memcpy and memset.
+ */
+// #define ISO_TP_NO_FORMATTED_ERRORS
+
+
 /* Private: Value to use when padding frames if enabled by ISO_TP_FRAME_PADDING
  */
 #ifndef ISO_TP_FRAME_PADDING_VALUE

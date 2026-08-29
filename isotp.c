@@ -481,6 +481,7 @@ int isotp_send_with_id(IsoTpLink* link, uint32_t id, const uint8_t payload[], ui
     if (size > link->send_buf_size) {
         isotp_user_debug("Message size too large. Increase ISO_TP_MAX_MESSAGE_SIZE to set a larger buffer\n");
 
+#ifndef ISO_TP_NO_FORMATTED_ERRORS
         char    message[ISOTP_MAX_ERROR_MSG_SIZE] = {0};
         int32_t writtenChars = snprintf(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Attempted to send %u bytes; max size is %u!\n", (unsigned int)size,
                                         (unsigned int)link->send_buf_size);
@@ -489,6 +490,7 @@ int isotp_send_with_id(IsoTpLink* link, uint32_t id, const uint8_t payload[], ui
         (void)writtenChars;
 
         isotp_user_debug(message);
+#endif
         return ISOTP_RET_OVERFLOW;
     }
 
@@ -806,6 +808,7 @@ int isotp_set_tx_dl(IsoTpLink* link, uint8_t tx_dl) {
     }
 
     if (tx_dl < ISOTP_CAN_DL_CLASSIC || tx_dl > ISO_TP_MAX_CAN_FRAME_SIZE || !isotp_is_valid_can_dl(tx_dl)) {
+#ifndef ISO_TP_NO_FORMATTED_ERRORS
         char    message[ISOTP_MAX_ERROR_MSG_SIZE] = {0};
         int32_t writtenChars =
             snprintf(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Invalid TX_DL of %u bytes; must be a CAN frame length between 8 and %u!\n",
@@ -815,6 +818,9 @@ int isotp_set_tx_dl(IsoTpLink* link, uint8_t tx_dl) {
         (void)writtenChars;
 
         isotp_user_debug(message);
+#else
+        isotp_user_debug("Invalid TX_DL; must be a valid CAN frame length.\n");
+#endif
         return ISOTP_RET_ERROR;
     }
 

@@ -19,6 +19,7 @@ option(isotpc_ENABLE_TRANSCEIVE_EVENTS "Enable events/callbacks for transmission
 option(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK "Enable transmit complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback." ON) # These can be disabled separately, as they are controlled by the main event option
 option(isotpc_ENABLE_STREAMING "Enable chunked reception of messages larger than the receive buffer." OFF)
+option(isotpc_NO_FORMATTED_ERRORS "Omit the formatted error messages, dropping the library's only dependency on snprintf." OFF)
 option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 option(isotpc_ENABLE_COVERAGE "Instrument the unit-test subjects for gcovr coverage reporting." OFF)
 
@@ -97,6 +98,13 @@ target_compile_definitions(
 ###
 if (isotpc_ENABLE_CAN_SEND_ARG)
     target_compile_options(isotp PRIVATE -DISO_TP_USER_SEND_CAN_ARG)
+endif()
+
+###
+# Drop the two formatted error messages, and with them the snprintf dependency
+###
+if (isotpc_NO_FORMATTED_ERRORS)
+    target_compile_options(isotp PRIVATE -DISO_TP_NO_FORMATTED_ERRORS)
 endif()
 
 ###

@@ -44,6 +44,8 @@ jobs:
             cmake_options: -Disotpc_ENABLE_CAN_SEND_ARG=ON -Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON
           - name: CAN FD
             cmake_options: -Disotpc_MAX_CAN_FRAME_SIZE=64
+          - name: no formatted errors
+            cmake_options: -Disotpc_NO_FORMATTED_ERRORS=ON
           - name: CAN FD with all features
             cmake_options: -Disotpc_MAX_CAN_FRAME_SIZE=64 -Disotpc_DEFAULT_TX_DL=32 -Disotpc_ENABLE_CAN_SEND_FLAGS=ON -Disotpc_ENABLE_CAN_FD_BRS=ON -Disotpc_ENABLE_CAN_SEND_ARG=ON -Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON -Disotpc_ENABLE_STREAMING=ON
 
