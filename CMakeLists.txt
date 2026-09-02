@@ -23,6 +23,7 @@ option(isotpc_NO_FORMATTED_ERRORS "Omit the formatted error messages, dropping t
 option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 option(isotpc_ENABLE_COVERAGE "Instrument the unit-test subjects for gcovr coverage reporting." OFF)
 option(isotpc_ENABLE_FUZZING "Enable building of libFuzzer targets." OFF)
+option(isotpc_BUILD_EXAMPLES "Compile the integration examples." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -193,4 +194,8 @@ endif()
 
 if (isotpc_ENABLE_FUZZING)
     add_subdirectory(fuzz)
+endif()
+
+if (isotpc_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
