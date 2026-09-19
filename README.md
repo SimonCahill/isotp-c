@@ -154,6 +154,17 @@ make USE_STATIC_LIBRARY=ON MAX_CAN_FRAME_SIZE=64 all
 `make tests` configures and runs the CMake unit suite. `make fuzzing` builds the
 libFuzzer receive target with Clang; see the [fuzzing guide](https://github.com/SimonCahill/isotp-c/blob/master/fuzz/README.md).
 
+### Embedded cross-compilation
+
+The [embedded CI workflow](.github/workflows/embedded.yml) builds the static
+library and integration examples with both GCC and Clang for Arm Cortex-M0/M4/M7,
+32/64-bit RISC-V, and Espressif ESP32/S2/S3/C3/C6. Each target checks Classical
+CAN, CAN FD with optional features, and a small configuration without formatted
+errors. These are compile checks; runtime tests run separately on the host.
+
+See [Embedded builds](docs/embedded-builds.md) for toolchain installation,
+local commands, compiler versions, and the scope of these checks.
+
 ## Configuration
 
 Use CMake options when the library is a CMake dependency, Make variables with

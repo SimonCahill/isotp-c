@@ -1,0 +1,92 @@
+name: Embedded builds
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross_compile:
+    name: ${{ matrix.target }} / ${{ matrix.compiler }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        target: [cortex-m0, cortex-m4, cortex-m7, riscv32, riscv64, esp32, esp32s2, esp32s3, esp32c3, esp32c6]
+        include:
+          - target: cortex-m0
+            toolchain: arm
+          - target: cortex-m4
+            toolchain: arm
+          - target: cortex-m7
+            toolchain: arm
+          - target: riscv32
+            toolchain: riscv
+          - target: riscv64
+            toolchain: riscv
+          - target: esp32
+            toolchain: esp-xtensa
+          - target: esp32s2
+            toolchain: esp-xtensa
+          - target: esp32s3
+            toolchain: esp-xtensa
+          - target: esp32c3
+            toolchain: esp-riscv
+          - target: esp32c6
+            toolchain: esp-riscv
+    env:
+      EMBEDDED_TOOLCHAIN_ROOT: ${{ github.workspace }}/build-embedded/toolchains
+      CLANG: clang-18
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install build utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build clang-18 xz-utils
+
+      - name: Cache GCC toolchain and target libc
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EMBEDDED_TOOLCHAIN_ROOT }}/${{ matrix.toolchain }}
+          key: embedded-${{ runner.os }}-${{ runner.arch }}-${{ matrix.toolchain }}-${{ hashFiles('.github/scripts/install-embedded-toolchain.sh') }}
+
+      - name: Cache Espressif Clang
+        if: matrix.compiler == 'clang' && startsWith(matrix.target, 'esp32')
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EMBEDDED_TOOLCHAIN_ROOT }}/esp-clang
+          key: embedded-${{ runner.os }}-${{ runner.arch }}-esp-clang-${{ hashFiles('.github/scripts/install-embedded-toolchain.sh') }}
+
+      - name: Install GCC toolchain and target libc
+        run: bash .github/scripts/install-embedded-toolchain.sh "${{ matrix.toolchain }}"
+
+      - name: Install Espressif Clang
+        if: matrix.compiler == 'clang' && startsWith(matrix.target, 'esp32')
+        run: bash .github/scripts/install-embedded-toolchain.sh esp-clang
+
+      - name: Build library and integration examples
+        run: bash .github/scripts/build-embedded.sh "${{ matrix.target }}" "${{ matrix.compiler }}"
+
+      - name: Upload libraries and build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-${{ matrix.target }}-${{ matrix.compiler }}
+          path: |
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/libisotp.a
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/compile_commands.json
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/elf-header.txt
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/CMakeCache.txt
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/CMakeConfigureLog.yaml
+          if-no-files-found: warn
+          retention-days: 7
