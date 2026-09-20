@@ -173,6 +173,7 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
         (void)memcpy(message.as.single_frame.data, link->send_buffer, link->send_size);
 
         size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 1u));
+#if ISO_TP_MAX_CAN_FRAME_SIZE > ISOTP_CAN_DL_CLASSIC
     } else { // ISO15765-2:2016, CAN FD only
         /* setup message using the SF_DL escape sequence */
         message.as.single_frame_escape.type        = ISOTP_PCI_TYPE_SINGLE;
@@ -181,6 +182,7 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
         (void)memcpy(message.as.single_frame_escape.data, link->send_buffer, link->send_size);
 
         size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 2u));
+#endif
     }
 
     /* send message using the identifier requested by the caller, which

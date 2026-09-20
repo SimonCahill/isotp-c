@@ -19,9 +19,11 @@ if [[ $(uname -s) != Linux || $(uname -m) != x86_64 ]]; then
     exit 2
 fi
 
-# xPack checksums come from each release's <archive>.sha asset. Espressif
-# versions/checksums match esp-idf v5.5.1 tools/tools.json. Keep these pins and
-# their hashes together; the workflow cache key includes this entire script.
+# xPack checksums come from each release's <archive>.sha asset. Xtensa GCC and
+# Espressif Clang match esp-idf v5.5.1 tools/tools.json. RISC-V GCC uses the
+# esp-14.2.0_20260121 release and its published SHA-256 to cover the reported
+# stringop-overflow diagnostic. Keep pins and hashes together; the workflow
+# cache key includes this entire script.
 case "$1" in
     arm)
         url=https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v14.2.1-1.1/xpack-arm-none-eabi-gcc-14.2.1-1.1-linux-x64.tar.gz
@@ -36,8 +38,8 @@ case "$1" in
         sha256=e3e6dcf3d275c3c9ab0e4c8a9d93fd10e7efc035d435460576c9d95b4140c676
         ;;
     esp-riscv)
-        url=https://github.com/espressif/crosstool-NG/releases/download/esp-14.2.0_20241119/riscv32-esp-elf-14.2.0_20241119-x86_64-linux-gnu.tar.xz
-        sha256=7faaa86d272f3e43c233f8a5ffeba327673224a752c2eb72394655d5e7950000
+        url=https://github.com/espressif/crosstool-NG/releases/download/esp-14.2.0_20260121/riscv32-esp-elf-14.2.0_20260121-x86_64-linux-gnu.tar.xz
+        sha256=b3fce4b04dd15a9f0ed1c209b5a2f389c04eff92ed85e4cc0ebc275b7d95e95a
         ;;
     esp-clang)
         url=https://github.com/espressif/llvm-project/releases/download/esp-19.1.2_20250312/clang-esp-19.1.2_20250312-x86_64-linux-gnu.tar.xz

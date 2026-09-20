@@ -11,6 +11,96 @@ permissions:
   contents: read
 
 jobs:
+  gcc_diagnostics:
+    name: GCC diagnostics / ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: cortex-m0
+            toolchain: arm
+            prefix: arm-none-eabi
+            flags: -mcpu=cortex-m0 -mthumb -mfloat-abi=soft
+          - target: cortex-m4
+            toolchain: arm
+            prefix: arm-none-eabi
+            flags: -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
+          - target: cortex-m7
+            toolchain: arm
+            prefix: arm-none-eabi
+            flags: -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard
+          - target: riscv32
+            toolchain: riscv
+            prefix: riscv-none-elf
+            flags: -march=rv32imac -mabi=ilp32
+          - target: riscv64
+            toolchain: riscv
+            prefix: riscv-none-elf
+            flags: -march=rv64imac -mabi=lp64
+          - target: esp32
+            toolchain: esp-xtensa
+            prefix: xtensa-esp32-elf
+            flags: -mlongcalls
+          - target: esp32s2
+            toolchain: esp-xtensa
+            prefix: xtensa-esp32s2-elf
+            flags: -mlongcalls
+          - target: esp32s3
+            toolchain: esp-xtensa
+            prefix: xtensa-esp32s3-elf
+            flags: -mlongcalls
+          - target: esp32c3
+            toolchain: esp-riscv
+            prefix: riscv32-esp-elf
+            flags: -march=rv32imc_zicsr_zifencei -mabi=ilp32
+          - target: esp32c6
+            toolchain: esp-riscv
+            prefix: riscv32-esp-elf
+            flags: -march=rv32imac_zicsr_zifencei -mabi=ilp32
+    env:
+      EMBEDDED_TOOLCHAIN_ROOT: ${{ github.workspace }}/build-embedded/toolchains
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install archive utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xz-utils
+
+      - name: Cache GCC toolchain and target libc
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EMBEDDED_TOOLCHAIN_ROOT }}/${{ matrix.toolchain }}
+          key: embedded-${{ runner.os }}-${{ runner.arch }}-${{ matrix.toolchain }}-${{ hashFiles('.github/scripts/install-embedded-toolchain.sh') }}
+
+      - name: Install GCC toolchain and target libc
+        run: bash .github/scripts/install-embedded-toolchain.sh "${{ matrix.toolchain }}"
+
+      - name: Check optimization-dependent GCC diagnostics
+        env:
+          TARGET_FLAGS: ${{ matrix.flags }}
+        run: |
+          read -r -a target_flags <<< "$TARGET_FLAGS"
+          bash .github/scripts/check-gcc-diagnostics.sh \
+            "$EMBEDDED_TOOLCHAIN_ROOT/${{ matrix.toolchain }}/bin/${{ matrix.prefix }}-gcc" \
+            "build-embedded/diagnostics/${{ matrix.target }}" "${target_flags[@]}"
+
+      - name: Upload compiler diagnostics and failing translation units
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcc-diagnostics-${{ matrix.target }}
+          path: |
+            build-embedded/diagnostics/${{ matrix.target }}/*.log
+            build-embedded/diagnostics/${{ matrix.target }}/*.tsv
+            build-embedded/diagnostics/${{ matrix.target }}/*.i
+          if-no-files-found: warn
+          retention-days: 7
+
   cross_compile:
     name: ${{ matrix.target }} / ${{ matrix.compiler }} / ${{ matrix.build_system }}
     runs-on: ubuntu-24.04

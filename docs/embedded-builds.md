@@ -6,6 +6,9 @@ target below is compiled with **both GCC and Clang**, using **both CMake/Ninja
 and the project's native Makefile**. Each target/compiler/build-system
 combination has an independent job with `fail-fast: false`, so a failing CMake
 build does not prevent the corresponding Makefile build from running.
+Each target also has a separate GCC diagnostics job with built-in libc checks
+enabled across optimization levels. A failure in either job type fails the
+workflow.
 
 | Script target | CPU / instruction set | ABI | GCC package | Clang |
 | --- | --- | --- | --- | --- |
@@ -97,9 +100,13 @@ Compiler versions, target triples and sysroots are recorded in each profile's
 
 - Arm GCC: [xPack 14.2.1-1.1](https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/tag/v14.2.1-1.1).
 - Generic RISC-V GCC: [xPack 14.2.0-3](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/tag/v14.2.0-3).
-- Espressif GCC: `esp-14.2.0_20241119`; Espressif Clang:
-  `esp-19.1.2_20250312`. URLs and checksums come from the
+- Espressif Xtensa GCC: `esp-14.2.0_20241119`; Espressif Clang:
+  `esp-19.1.2_20250312`. These URLs and checksums come from the
   [ESP-IDF v5.5.1 tool manifest](https://github.com/espressif/esp-idf/blob/v5.5.1/tools/tools.json).
+- Espressif RISC-V GCC:
+  [esp-14.2.0_20260121](https://github.com/espressif/crosstool-NG/releases/tag/esp-14.2.0_20260121),
+  matching the reported `-Wstringop-overflow` failure. Its SHA-256 comes from
+  the release's published checksums.
 
 ## What CI checks
 
@@ -127,6 +134,50 @@ These archives use different compile-time configurations; consumers
 must use the corresponding definitions, particularly those that affect the
 public structure layout or platform hook signatures.
 
+### GCC diagnostics
+
+The normal cross-builds use `-ffreestanding`, which disables GCC's built-in
+libc handling and can hide warnings about calls such as `memcpy`. The separate
+diagnostics jobs compile `isotp.c` directly with the same target compilers and
+CPU/ABI flags, using `-fhosted` to enable built-in checks. They need no firmware
+link step and still use the target libc headers.
+
+Each of the ten targets checks all 72 combinations of:
+
+- C99 and GNU17.
+- `-O0`, `-Og`, `-O1`, `-O2`, `-O3`, and `-Os`.
+- Classical CAN, CAN FD with optional features, and small/no formatted errors.
+- Assertions enabled (`-UNDEBUG`) and disabled (`-DNDEBUG`).
+
+Warnings are errors, including explicit string-operation overflow, array-bounds
+and format diagnostics. The Classical CAN profile uses the library defaults
+with no padding, matching the reported failure. In particular, a debug build
+at `-O0` cannot stand in for `-Og`: compiler diagnostics can differ by
+optimization level. The diagnostics script runs every combination and exits
+with failure if any compile fails.
+
+To run the ESP32-C3 diagnostics locally on Linux x86_64:
+
+```bash
+bash .github/scripts/install-embedded-toolchain.sh esp-riscv
+bash .github/scripts/check-gcc-diagnostics.sh \
+  "$PWD/build-embedded/toolchains/esp-riscv/bin/riscv32-esp-elf-gcc" \
+  build-embedded/diagnostics/esp32c3 \
+  -march=rv32imc_zicsr_zifencei -mabi=ilp32
+```
+
+If an older compiler is already installed in that directory, use a fresh
+`EMBEDDED_TOOLCHAIN_ROOT` and pass its compiler path to the diagnostics script.
+The same script can check a host GCC by passing its executable and omitting
+the CPU/ABI flags.
+
+Artifacts named `gcc-diagnostics-<target>` retain compiler versions, exact
+commands and errors, a `results.tsv` summary, and preprocessed `.i` files for
+failed compilations for seven days. These checks supplement the independent
+CMake and native Makefile jobs; they do not replace either build system.
+
+### Scope
+
 These checks cover compilation and archiving of the portable library and
 integration examples. They do not link or flash firmware, build ESP-IDF, run
 on an emulator, or test CAN hardware. Host unit tests and fuzzing remain in the
@@ -137,5 +188,5 @@ To add a target, extend the CPU/ABI mapping in
 [the CMake toolchain](../.github/cmake/embedded.cmake), the matching native Make
 CPU/ABI flags and ELF expectations in
 [the build script](../.github/scripts/build-embedded.sh), and
-the workflow matrix. Add an installer package only if a new compiler
-distribution is needed.
+both workflow matrices (including the diagnostics CPU/ABI flags). Add an
+installer package only if a new compiler distribution is needed.

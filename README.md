@@ -162,6 +162,8 @@ GCC and Clang for Arm Cortex-M0/M4/M7, 32/64-bit RISC-V, and Espressif
 ESP32/S2/S3/C3/C6. Each target checks Classical
 CAN, CAN FD with optional features, and a small configuration without formatted
 errors. These are compile checks; runtime tests run separately on the host.
+Separate GCC diagnostics jobs keep built-in libc checks enabled and test six
+optimization levels, including `-Og`, with assertions both enabled and disabled.
 
 See [Embedded builds](docs/embedded-builds.md) for toolchain installation,
 local commands, compiler versions, and the scope of these checks.
