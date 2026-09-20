@@ -157,8 +157,9 @@ libFuzzer receive target with Clang; see the [fuzzing guide](https://github.com/
 ### Embedded cross-compilation
 
 The [embedded CI workflow](.github/workflows/embedded.yml) builds the static
-library and integration examples with both GCC and Clang for Arm Cortex-M0/M4/M7,
-32/64-bit RISC-V, and Espressif ESP32/S2/S3/C3/C6. Each target checks Classical
+library and integration examples through both CMake and native Makefiles, with
+GCC and Clang for Arm Cortex-M0/M4/M7, 32/64-bit RISC-V, and Espressif
+ESP32/S2/S3/C3/C6. Each target checks Classical
 CAN, CAN FD with optional features, and a small configuration without formatted
 errors. These are compile checks; runtime tests run separately on the host.
 

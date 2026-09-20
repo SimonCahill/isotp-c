@@ -1,5 +1,6 @@
 # Used by build-embedded.sh. No startup code, linker script, or board SDK is
 # needed: all compiler probes and project outputs are static libraries/objects.
+# Keep CPU/ABI flags in sync with the native Make settings in build-embedded.sh.
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES

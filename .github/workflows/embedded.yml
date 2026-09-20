@@ -12,13 +12,14 @@ permissions:
 
 jobs:
   cross_compile:
-    name: ${{ matrix.target }} / ${{ matrix.compiler }}
+    name: ${{ matrix.target }} / ${{ matrix.compiler }} / ${{ matrix.build_system }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         compiler: [gcc, clang]
+        build_system: [cmake, make]
         target: [cortex-m0, cortex-m4, cortex-m7, riscv32, riscv64, esp32, esp32s2, esp32s3, esp32c3, esp32c6]
         include:
           - target: cortex-m0
@@ -52,7 +53,7 @@ jobs:
       - name: Install build utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake ninja-build clang-18 xz-utils
+          sudo apt-get install -y --no-install-recommends cmake ninja-build make clang-18 xz-utils
 
       - name: Cache GCC toolchain and target libc
         uses: actions/cache@v4
@@ -75,18 +76,21 @@ jobs:
         run: bash .github/scripts/install-embedded-toolchain.sh esp-clang
 
       - name: Build library and integration examples
-        run: bash .github/scripts/build-embedded.sh "${{ matrix.target }}" "${{ matrix.compiler }}"
+        run: bash .github/scripts/build-embedded.sh "${{ matrix.target }}" "${{ matrix.compiler }}" all "${{ matrix.build_system }}"
 
       - name: Upload libraries and build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: embedded-${{ matrix.target }}-${{ matrix.compiler }}
+          name: embedded-${{ matrix.target }}-${{ matrix.compiler }}-${{ matrix.build_system }}
           path: |
-            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/libisotp.a
-            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/compile_commands.json
-            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/elf-header.txt
-            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/CMakeCache.txt
-            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/**/CMakeConfigureLog.yaml
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/libisotp.a
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/build.log
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/compile_commands.json
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/elf-header.txt
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeCache.txt
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeConfigureLog.yaml
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeOutput.log
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeError.log
           if-no-files-found: warn
           retention-days: 7
