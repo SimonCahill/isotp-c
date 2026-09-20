@@ -175,7 +175,7 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
         size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 1u));
     } else { // ISO15765-2:2016, CAN FD only
         uint32_t byteCount = link->send_size;
-        const uint32_t maxSize = sizeof(message.as.single_frame_escape.data);
+        const uint64_t maxSize = sizeof(message.as.single_frame_escape.data);
 
         if (byteCount > maxSize) { byteCount = maxSize; }
 
