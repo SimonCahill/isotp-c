@@ -310,6 +310,21 @@ cmake --build build-tests
 ctest --test-dir build-tests --output-on-failure
 ```
 
+Run only the `isotp_memcpy` suite with:
+
+```bash
+ctest --test-dir build-tests -R '^isotp_test_memcpy' --output-on-failure
+```
+
+The suite runs with assertions enabled and with `NDEBUG`, covering input checks,
+error precedence, size boundaries, unchanged buffers on rejection, exact copies,
+and overlapping ranges. On platforms exposing `__assert_fail` (such as Linux),
+an additional test target injects invalid `memmove` return values to exercise the
+assertion failure branch. Its assertion handler exits normally so coverage data
+from the child process is saved. Enable `isotpc_ENABLE_COVERAGE` in a Debug build
+to instrument the test subjects; the fault-injection target covers all 12 branches
+of `isotp_memcpy`, including both operands of the null-pointer check.
+
 Compile every integration example with strict warnings:
 
 ```bash
