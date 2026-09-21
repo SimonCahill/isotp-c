@@ -173,19 +173,16 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
         (void)memcpy(message.as.single_frame.data, link->send_buffer, link->send_size);
 
         size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 1u));
+#if ISO_TP_MAX_CAN_FRAME_SIZE > ISOTP_CAN_DL_CLASSIC
     } else { // ISO15765-2:2016, CAN FD only
-        uint32_t byteCount = link->send_size;
-        const uint64_t maxSize = sizeof(message.as.single_frame_escape.data);
-
-        if (byteCount > maxSize) { byteCount = maxSize; }
-
         /* setup message using the SF_DL escape sequence */
         message.as.single_frame_escape.type        = ISOTP_PCI_TYPE_SINGLE;
         message.as.single_frame_escape.set_to_zero = 0;
-        message.as.single_frame_escape.SF_DL       = (uint8_t)byteCount;
-        (void)memcpy(message.as.single_frame_escape.data, link->send_buffer, byteCount);
+        message.as.single_frame_escape.SF_DL       = (uint8_t)link->send_size;
+        (void)memcpy(message.as.single_frame_escape.data, link->send_buffer, link->send_size);
 
         size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 2u));
+#endif
     }
 
     /* send message using the identifier requested by the caller, which
@@ -454,7 +451,7 @@ static int isotp_receive_consecutive_frame(IsoTpLink* link, const IsoTpCanMessag
     return ISOTP_RET_OK;
 }
 
-static int isotp_receive_flow_control_frame(IsoTpLink* link, IsoTpCanMessage* message, uint8_t len) {
+static int isotp_receive_flow_control_frame(const IsoTpLink* link, const IsoTpCanMessage* message, uint8_t len) {
     /* unused args */
     (void)link;
     (void)message;
@@ -931,3 +928,27 @@ void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg) {
     }
 }
 #endif
+
+/**
+ * @brief A memory-safe wrapper around memcpy to detect failures and appease the static analysis gods.
+ * 
+ * @param destPtr The destination where the memory shall be copied to.
+ * @param destSize The size of the destination in bytes.
+ * @param source The source where the memory shall be copied from.
+ * @param sourceSize The size of the source memory in bytes.
+ * @param bytesToCopy The total amount of bytes to copy.
+ * @return IsoTpMemCpyResult The result of the copy operation.
+ */
+IsoTpMemCpyResult isotp_memcpy(void* destPtr, const size_t destSize, const void* source, const size_t sourceSize, const size_t bytesToCopy) {
+    if (bytesToCopy == 0) { return ISOTP_MEMCPY_OK; }
+    if (destPtr == NULL || source == NULL) { return ISOTP_MEMCPY_NULLPTR; }
+    if (bytesToCopy > destSize) { return ISOTP_MEMCPY_DEST_TOO_SMALL; }
+    if (bytesToCopy > sourceSize) { return ISOTP_MEMCPY_SRC_TOO_SMALL; }
+
+    /* The copy must also run when assertions are disabled. */
+    const void* const result = memmove(destPtr, source, bytesToCopy);
+    assert(result == destPtr);
+    (void)result;
+
+    return ISOTP_MEMCPY_OK;
+}
