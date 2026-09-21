@@ -62,6 +62,34 @@ function(isotpc_add_unit_test test_name source)
     )
 endfunction()
 
+isotpc_add_unit_test(isotp_test_memcpy ${CMAKE_CURRENT_SOURCE_DIR}/test_memcpy.cpp)
+isotpc_add_unit_test(isotp_test_memcpy_ndebug ${CMAKE_CURRENT_SOURCE_DIR}/test_memcpy.cpp NDEBUG)
+
+# Exercise the assertion regardless of the selected CMake build configuration.
+if (MSVC)
+    set(isotpc_UNDEFINE_NDEBUG /UNDEBUG)
+else()
+    set(isotpc_UNDEFINE_NDEBUG -UNDEBUG)
+endif()
+target_compile_options(isotp_test_memcpy_subject PRIVATE ${isotpc_UNDEFINE_NDEBUG})
+
+# Fault injection needs the libc assertion hook. The ordinary copy and NDEBUG
+# suites above remain available on platforms without this hook.
+include(CheckSymbolExists)
+include(CMakePushCheckState)
+cmake_push_check_state(RESET)
+set(CMAKE_REQUIRED_DEFINITIONS ${isotpc_UNDEFINE_NDEBUG})
+check_symbol_exists(__assert_fail "assert.h" isotpc_HAVE_ASSERT_FAIL)
+cmake_pop_check_state()
+if (isotpc_HAVE_ASSERT_FAIL)
+    isotpc_add_unit_test(isotp_test_memcpy_checks ${CMAKE_CURRENT_SOURCE_DIR}/test_memcpy_checks.cpp)
+    target_compile_options(isotp_test_memcpy_checks_subject PRIVATE ${isotpc_UNDEFINE_NDEBUG})
+    target_compile_definitions(isotp_test_memcpy_checks_subject PRIVATE
+        memmove=isotp_test_memmove
+        __assert_fail=isotp_test_assert_fail
+    )
+endif()
+
 if (isotpc_ENABLE_STREAMING)
     isotpc_add_unit_test(
         isotp_streaming_tests
