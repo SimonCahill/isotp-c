@@ -70,6 +70,11 @@
 #define ISOTP_CAN_FRAME_FLAG_BRS 0x02
 
 /**
+ * @brief Get the smaller of two numbers.
+ */
+#define ISOTP_MIN(a, b) (((a) < (b)) ? (a) : (b))
+
+/**
  * Largest ISO-TP payload that fits in one frame for a given CAN_DL.
  *
  * CAN FD data lengths use the two-byte SF_DL escape header; Classical CAN uses
