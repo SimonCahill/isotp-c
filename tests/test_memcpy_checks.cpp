@@ -88,6 +88,12 @@ TEST_F(MemcpyChecksTest, MaximumCountEqualToBothCapacitiesPassesGuardsWithoutTru
     overrideMoveResult = true;
     moveResult          = &destination;
 
+    // Check interception with a safe count before supplying a deliberately
+    // impossible size. Broken test wiring must fail instead of copying SIZE_MAX.
+    ASSERT_EQ(isotp_memcpy(&destination, 1, &SOURCE, 1, 1), ISOTP_MEMCPY_OK);
+    ASSERT_EQ(moveCalls, 1U) << "The memmove stub must be active before testing SIZE_MAX";
+    moveCalls = 0;
+
     ASSERT_EQ(isotp_memcpy(&destination, MAXIMUM, &SOURCE, MAXIMUM, MAXIMUM), ISOTP_MEMCPY_OK);
     EXPECT_EQ(moveCalls, 1U);
     EXPECT_EQ(lastDestination, &destination);
@@ -103,7 +109,7 @@ TEST_F(MemcpyChecksDeathTest, AssertsWhenMemmoveReturnsNull) {
     moveResult                     = nullptr;
 
     EXPECT_EXIT((void)isotp_memcpy(&destination, 1, &SOURCE, 1, 1), testing::ExitedWithCode(ASSERTION_EXIT_CODE),
-                "isotp_memcpy.*assertion failed:.*== destPtr");
+                "isotp_memcpy.*assertion failed:.*result != NULL");
 }
 
 TEST_F(MemcpyChecksDeathTest, AssertsWhenMemmoveReturnsADifferentNonNullPointer) {

@@ -98,9 +98,11 @@ check_symbol_exists(__assert_fail "assert.h" isotpc_HAVE_ASSERT_FAIL)
 cmake_pop_check_state()
 if (isotpc_HAVE_ASSERT_FAIL)
     isotpc_add_unit_test(isotp_test_memcpy_checks ${CMAKE_CURRENT_SOURCE_DIR}/test_memcpy_checks.cpp)
+    # Load libc headers before redirecting memmove, so fortified inline wrappers
+    # cannot replace the test stub with a real copy in optimized builds.
+    set_property(TARGET isotp_test_memcpy_checks_subject PROPERTY SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/support/memcpy_checks_subject.c)
     target_compile_options(isotp_test_memcpy_checks_subject PRIVATE ${isotpc_UNDEFINE_NDEBUG})
     target_compile_definitions(isotp_test_memcpy_checks_subject PRIVATE
-        memmove=isotp_test_memmove
         __assert_fail=isotp_test_assert_fail
     )
 endif()
