@@ -1026,6 +1026,7 @@ IsoTpMemCpyResult isotp_memcpy(void* destPtr, const size_t destSize, const void*
 
     /* The copy must also run when assertions are disabled. */
     const void* const result = memmove(destPtr, source, bytesToCopy);
+    assert(result != NULL);
     assert(result == destPtr);
     (void)result;
 
