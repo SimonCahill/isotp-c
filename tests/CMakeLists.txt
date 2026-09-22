@@ -58,9 +58,24 @@ function(isotpc_add_unit_test test_name source)
     gtest_discover_tests(
         ${test_name}
         TEST_PREFIX "${test_name}."
+        NO_PRETTY_VALUES
         DISCOVERY_MODE PRE_TEST
     )
 endfunction()
+
+# Compile the actual padding helper for every supported capacity and padding mode.
+foreach(frameCapacity IN ITEMS 8 12 16 20 24 32 48 64)
+    foreach(paddingMode IN ITEMS padded unpadded)
+        set(testName "isotp_test_padding_${frameCapacity}_${paddingMode}")
+        set(paddingDefinitions ISO_TP_MAX_CAN_FRAME_SIZE=${frameCapacity})
+        if (paddingMode STREQUAL "padded")
+            list(APPEND paddingDefinitions ISO_TP_FRAME_PADDING)
+        endif()
+        isotpc_add_unit_test(${testName} ${CMAKE_CURRENT_SOURCE_DIR}/test_padding.cpp ${paddingDefinitions})
+        # The bridge includes isotp.c, so do not also compile it separately.
+        set_property(TARGET ${testName}_subject PROPERTY SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/support/padding_subject.c)
+    endforeach()
+endforeach()
 
 isotpc_add_unit_test(isotp_test_memcpy ${CMAKE_CURRENT_SOURCE_DIR}/test_memcpy.cpp)
 isotpc_add_unit_test(isotp_test_memcpy_ndebug ${CMAKE_CURRENT_SOURCE_DIR}/test_memcpy.cpp NDEBUG)
