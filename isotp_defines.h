@@ -70,6 +70,11 @@
 #define ISOTP_CAN_FRAME_FLAG_BRS 0x02
 
 /**
+ * @brief Get the smaller of two numbers.
+ */
+#define ISOTP_MIN(a, b) (((a) < (b)) ? (a) : (b))
+
+/**
  * Largest ISO-TP payload that fits in one frame for a given CAN_DL.
  *
  * CAN FD data lengths use the two-byte SF_DL escape header; Classical CAN uses
@@ -364,6 +369,11 @@ typedef enum {
 /* Private: Protocol Control Information (PCI) flow control identifiers.
  */
 typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_FLOW_STATUS_OVERFLOW = 0x2 } IsoTpFlowStatus;
+
+/**
+ * @brief Private: memcpy wrapper return codes.
+ */
+typedef enum { ISOTP_MEMCPY_OK = 0x0, ISOTP_MEMCPY_NULLPTR = 0x01, ISOTP_MEMCPY_DEST_TOO_SMALL = 0x02, ISOTP_MEMCPY_SRC_TOO_SMALL = 0x03 } IsoTpMemCpyResult;
 
 /** @endcond */
 

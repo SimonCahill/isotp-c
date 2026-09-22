@@ -1,0 +1,186 @@
+name: Embedded builds
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gcc_diagnostics:
+    name: GCC diagnostics / ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: cortex-m0
+            toolchain: arm
+            prefix: arm-none-eabi
+            flags: -mcpu=cortex-m0 -mthumb -mfloat-abi=soft
+          - target: cortex-m4
+            toolchain: arm
+            prefix: arm-none-eabi
+            flags: -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
+          - target: cortex-m7
+            toolchain: arm
+            prefix: arm-none-eabi
+            flags: -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard
+          - target: riscv32
+            toolchain: riscv
+            prefix: riscv-none-elf
+            flags: -march=rv32imac -mabi=ilp32
+          - target: riscv64
+            toolchain: riscv
+            prefix: riscv-none-elf
+            flags: -march=rv64imac -mabi=lp64
+          - target: esp32
+            toolchain: esp-xtensa
+            prefix: xtensa-esp32-elf
+            flags: -mlongcalls
+          - target: esp32s2
+            toolchain: esp-xtensa
+            prefix: xtensa-esp32s2-elf
+            flags: -mlongcalls
+          - target: esp32s3
+            toolchain: esp-xtensa
+            prefix: xtensa-esp32s3-elf
+            flags: -mlongcalls
+          - target: esp32c3
+            toolchain: esp-riscv
+            prefix: riscv32-esp-elf
+            flags: -march=rv32imc_zicsr_zifencei -mabi=ilp32
+          - target: esp32c6
+            toolchain: esp-riscv
+            prefix: riscv32-esp-elf
+            flags: -march=rv32imac_zicsr_zifencei -mabi=ilp32
+    env:
+      EMBEDDED_TOOLCHAIN_ROOT: ${{ github.workspace }}/build-embedded/toolchains
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install archive utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xz-utils
+
+      - name: Cache GCC toolchain and target libc
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EMBEDDED_TOOLCHAIN_ROOT }}/${{ matrix.toolchain }}
+          key: embedded-${{ runner.os }}-${{ runner.arch }}-${{ matrix.toolchain }}-${{ hashFiles('.github/scripts/install-embedded-toolchain.sh') }}
+
+      - name: Install GCC toolchain and target libc
+        run: bash .github/scripts/install-embedded-toolchain.sh "${{ matrix.toolchain }}"
+
+      - name: Check optimization-dependent GCC diagnostics
+        env:
+          TARGET_FLAGS: ${{ matrix.flags }}
+        run: |
+          read -r -a target_flags <<< "$TARGET_FLAGS"
+          bash .github/scripts/check-gcc-diagnostics.sh \
+            "$EMBEDDED_TOOLCHAIN_ROOT/${{ matrix.toolchain }}/bin/${{ matrix.prefix }}-gcc" \
+            "build-embedded/diagnostics/${{ matrix.target }}" "${target_flags[@]}"
+
+      - name: Upload compiler diagnostics and failing translation units
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcc-diagnostics-${{ matrix.target }}
+          path: |
+            build-embedded/diagnostics/${{ matrix.target }}/*.log
+            build-embedded/diagnostics/${{ matrix.target }}/*.tsv
+            build-embedded/diagnostics/${{ matrix.target }}/*.i
+          if-no-files-found: warn
+          retention-days: 7
+
+  cross_compile:
+    name: ${{ matrix.target }} / ${{ matrix.compiler }} / ${{ matrix.build_system }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        build_system: [cmake, make]
+        target: [cortex-m0, cortex-m4, cortex-m7, riscv32, riscv64, esp32, esp32s2, esp32s3, esp32c3, esp32c6]
+        include:
+          - target: cortex-m0
+            toolchain: arm
+          - target: cortex-m4
+            toolchain: arm
+          - target: cortex-m7
+            toolchain: arm
+          - target: riscv32
+            toolchain: riscv
+          - target: riscv64
+            toolchain: riscv
+          - target: esp32
+            toolchain: esp-xtensa
+          - target: esp32s2
+            toolchain: esp-xtensa
+          - target: esp32s3
+            toolchain: esp-xtensa
+          - target: esp32c3
+            toolchain: esp-riscv
+          - target: esp32c6
+            toolchain: esp-riscv
+    env:
+      EMBEDDED_TOOLCHAIN_ROOT: ${{ github.workspace }}/build-embedded/toolchains
+      CLANG: clang-18
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install build utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build make clang-18 xz-utils
+
+      - name: Cache GCC toolchain and target libc
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EMBEDDED_TOOLCHAIN_ROOT }}/${{ matrix.toolchain }}
+          key: embedded-${{ runner.os }}-${{ runner.arch }}-${{ matrix.toolchain }}-${{ hashFiles('.github/scripts/install-embedded-toolchain.sh') }}
+
+      - name: Cache Espressif Clang
+        if: matrix.compiler == 'clang' && startsWith(matrix.target, 'esp32')
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EMBEDDED_TOOLCHAIN_ROOT }}/esp-clang
+          key: embedded-${{ runner.os }}-${{ runner.arch }}-esp-clang-${{ hashFiles('.github/scripts/install-embedded-toolchain.sh') }}
+
+      - name: Install GCC toolchain and target libc
+        run: bash .github/scripts/install-embedded-toolchain.sh "${{ matrix.toolchain }}"
+
+      - name: Install Espressif Clang
+        if: matrix.compiler == 'clang' && startsWith(matrix.target, 'esp32')
+        run: bash .github/scripts/install-embedded-toolchain.sh esp-clang
+
+      - name: Build library and integration examples
+        run: bash .github/scripts/build-embedded.sh "${{ matrix.target }}" "${{ matrix.compiler }}" all "${{ matrix.build_system }}"
+
+      - name: Upload libraries and build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-${{ matrix.target }}-${{ matrix.compiler }}-${{ matrix.build_system }}
+          path: |
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/libisotp.a
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/build.log
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/compile_commands.json
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/elf-header.txt
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeCache.txt
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeConfigureLog.yaml
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeOutput.log
+            build-embedded/${{ matrix.target }}/${{ matrix.compiler }}/${{ matrix.build_system }}/**/CMakeError.log
+          if-no-files-found: warn
+          retention-days: 7

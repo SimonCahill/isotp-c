@@ -29,6 +29,7 @@ WARN_AS_ERROR           = YES
 WARN_FORMAT             = "$file:$line: $text"
 
 INPUT                   = README.md \
+                          docs/embedded-builds.md \
                           isotp.h \
                           isotp_config.h \
                           isotp_defines.h \
