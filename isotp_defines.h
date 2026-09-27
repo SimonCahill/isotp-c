@@ -21,23 +21,19 @@
         #error "unsupported byte ordering"
     #endif
 
-    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) content
+    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) (content)
 #endif
 
 /**************************************************************
  * OS specific defines
  *************************************************************/
 #ifdef _MSC_VER
-    #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct content __pragma(pack(pop))
+    #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct (content) __pragma(pack(pop))
 
     #define snprintf _snprintf
 
     #include <windows.h>
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-    #define __builtin_bswap8 _byteswap_uint8
-    #define __builtin_bswap16 _byteswap_uint16
-    #define __builtin_bswap32 _byteswap_uint32
-    #define __builtin_bswap64 _byteswap_uint64
 #endif
 
 #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
