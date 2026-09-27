@@ -482,7 +482,7 @@ int isotp_send_with_id(IsoTpLink* link, uint32_t id, const uint8_t payload[], ui
 
 #ifndef ISO_TP_NO_FORMATTED_ERRORS
         char    message[ISOTP_MAX_ERROR_MSG_SIZE] = {0};
-        int32_t writtenChars = snprintf(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Attempted to send %u bytes; max size is %u!\n", (unsigned int)size,
+        int32_t writtenChars = ISOTP_SNPRINTF(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Attempted to send %u bytes; max size is %u!\n", (unsigned int)size,
                                         (unsigned int)link->send_buf_size);
 
         assert(writtenChars <= ISOTP_MAX_ERROR_MSG_SIZE);
@@ -810,7 +810,7 @@ int isotp_set_tx_dl(IsoTpLink* link, uint8_t tx_dl) {
 #ifndef ISO_TP_NO_FORMATTED_ERRORS
         char    message[ISOTP_MAX_ERROR_MSG_SIZE] = {0};
         int32_t writtenChars =
-            snprintf(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Invalid TX_DL of %u bytes; must be a CAN frame length between 8 and %u!\n",
+            ISOTP_SNPRINTF(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Invalid TX_DL of %u bytes; must be a CAN frame length between 8 and %u!\n",
                      (unsigned int)tx_dl, (unsigned int)ISO_TP_MAX_CAN_FRAME_SIZE);
 
         assert(writtenChars <= ISOTP_MAX_ERROR_MSG_SIZE);

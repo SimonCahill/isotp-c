@@ -26,10 +26,14 @@
  * OS specific defines
  *************************************************************/
 #ifdef _MSC_VER
-    #define snprintf _snprintf
-
     #include <windows.h>
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1900
+    #define ISOTP_SNPRINTF _snprintf
+#else 
+    #define ISOTP_SNPRINTF snprintf
 #endif
 
 #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
