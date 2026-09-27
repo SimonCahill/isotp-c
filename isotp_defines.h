@@ -20,16 +20,12 @@
     #else
         #error "unsupported byte ordering"
     #endif
-
-    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) (content)
 #endif
 
 /**************************************************************
  * OS specific defines
  *************************************************************/
 #ifdef _MSC_VER
-    #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct (content) __pragma(pack(pop))
-
     #define snprintf _snprintf
 
     #include <windows.h>
@@ -166,13 +162,15 @@ typedef struct {
     uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
 } IsoTpFirstFrameShort;
 
-ISOTP_PACKED_STRUCT({
+#pragma pack(push, 1)
+typedef struct {
     uint8_t  set_to_zero_high : 4;
     uint8_t  type             : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
     uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
-} IsoTpFirstFrameLong);
+} IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 typedef struct {
     uint8_t SN   : 4;
@@ -256,13 +254,15 @@ typedef struct {
  * | PCIType = 1 | unused=0  | escape sequence = 0   | FF_DL                                 |
  * +-------------+-----------+-----------------------+---------------------------------------+
  */
-ISOTP_PACKED_STRUCT({
+#pragma pack(push, 1)
+typedef struct {
     uint8_t  type             : 4;
     uint8_t  set_to_zero_high : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
     uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
-} IsoTpFirstFrameLong);
+} IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 /*
  * consecutive frame
