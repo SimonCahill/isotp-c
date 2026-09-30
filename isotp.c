@@ -482,7 +482,7 @@ static int isotp_receive_consecutive_frame(IsoTpLink* link, const IsoTpCanMessag
         uint32_t copy_size = remaining_bytes < available ? remaining_bytes : available;
 
         // (void)memcpy(link->receive_buffer + link->receive_stream_size, message->as.consecutive_frame.data, copy_size);
-        const IsoTpMemCpyResult copyResult = isotp_memcpy(link->receive_buffer + link->receive_stream_size, link->receive_buf_size, message->as.consecutive_frame.data, sizeof(message->as.consecutive_frame.data), copy_size);
+        IsoTpMemCpyResult copyResult = isotp_memcpy(link->receive_buffer + link->receive_stream_size, link->receive_buf_size, message->as.consecutive_frame.data, sizeof(message->as.consecutive_frame.data), copy_size);
         assert(copyResult == ISOTP_MEMCPY_OK);
         (void)copyResult;
 
@@ -491,7 +491,7 @@ static int isotp_receive_consecutive_frame(IsoTpLink* link, const IsoTpCanMessag
         link->receive_stream_carry_size = (uint8_t)(remaining_bytes - copy_size);
         if (link->receive_stream_carry_size > 0) {
             // (void)memcpy(link->receive_stream_carry, message->as.consecutive_frame.data + copy_size, link->receive_stream_carry_size);
-            const IsoTpMemCpyResult copyResult = isotp_memcpy(link->receive_stream_carry, link->receive_stream_carry_size, message->as.consecutive_frame.data + copy_size, sizeof(message->as.consecutive_frame.data), link->receive_stream_carry_size);
+            copyResult = isotp_memcpy(link->receive_stream_carry, link->receive_stream_carry_size, message->as.consecutive_frame.data + copy_size, sizeof(message->as.consecutive_frame.data), link->receive_stream_carry_size);
             assert(copyResult == ISOTP_MEMCPY_OK);
             (void)copyResult;
         }
