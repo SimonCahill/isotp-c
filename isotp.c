@@ -75,7 +75,7 @@ static uint8_t isotp_frame_flags(const IsoTpLink* link) {
  * discrete set of frame lengths. Smaller frames are only padded if
  * ISO_TP_FRAME_PADDING is enabled.
  */
-static uint32_t isotp_pad_frame(IsoTpCanMessage* message, uint8_t used_length) {
+static int isotp_pad_frame(IsoTpCanMessage* message, uint8_t used_length) {
     if (used_length > sizeof(message->as.data_array.ptr)) { return ISOTP_RET_LENGTH; }
 
     uint8_t frame_length = used_length;
