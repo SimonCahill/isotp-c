@@ -817,11 +817,8 @@ int isotp_receive_streaming(IsoTpLink* link, uint8_t* payload, const uint32_t pa
 
     if (copyResult != ISOTP_MEMCPY_OK) { return ISOTP_RET_ERROR; }
 
-    if (out_size != NULL) { *out_size = copylen; }
-
-    if (is_complete != NULL) {
-        *is_complete = link->receive_offset >= link->receive_size && link->receive_stream_carry_size == 0;
-    }
+    *out_size = copylen;
+    *is_complete = link->receive_offset >= link->receive_size && link->receive_stream_carry_size == 0;
 
     if (!link->receive_streaming || *is_complete) {
         link->receive_status    = ISOTP_RECEIVE_STATUS_IDLE;

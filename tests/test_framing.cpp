@@ -926,6 +926,145 @@ TEST_F(FramingTest, InitializesAndValidatesTransmitDataLength) {
     test_set_tx_dl();
 }
 
+TEST_F(FramingTest, FallsBackToClassicForInvalidStoredFrameLengths) {
+    IsoTpLink link{};
+    for (const uint8_t LENGTH : {uint8_t{0}, uint8_t{7}, uint8_t{9}, uint8_t{65}, uint8_t{255}}) {
+        link.tx_dl = LENGTH;
+        EXPECT_EQ(isotp_get_tx_dl(&link), ISOTP_CAN_DL_CLASSIC);
+    }
+}
+
+TEST_F(FramingTest, ReceivesWithoutAnOutputSizePointer) {
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), sizeof(gReceiveBuffer));
+    const uint8_t FRAME[] = {0x02, 0xCA, 0xFE};
+    uint8_t output[2] = {};
+    deliver(&link, FRAME, sizeof(FRAME));
+
+    ASSERT_EQ(isotp_receive(&link, output, sizeof(output), nullptr), ISOTP_RET_OK);
+    EXPECT_EQ(output[0], 0xCA);
+    EXPECT_EQ(output[1], 0xFE);
+    EXPECT_EQ(link.receive_status, ISOTP_RECEIVE_STATUS_IDLE);
+}
+
+TEST_F(FramingTest, TimesOutWaitingForConsecutiveFramesAcrossClockWrap) {
+    for (const uint32_t START : {uint32_t{0}, UINT32_MAX - 100U}) {
+        reset_bus();
+        gTimeUs = START;
+        IsoTpLink link;
+        test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), sizeof(gReceiveBuffer));
+        const uint8_t FRAME[8] = {0x10, 20, 1, 2, 3, 4, 5, 6};
+        deliver(&link, FRAME, sizeof(FRAME));
+        ASSERT_EQ(link.receive_status, ISOTP_RECEIVE_STATUS_INPROGRESS);
+
+        gTimeUs = START + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
+        isotp_poll(&link);
+        EXPECT_EQ(link.receive_status, ISOTP_RECEIVE_STATUS_INPROGRESS);
+
+        ++gTimeUs;
+        isotp_poll(&link);
+        EXPECT_EQ(link.receive_status, ISOTP_RECEIVE_STATUS_IDLE);
+        EXPECT_EQ(link.receive_protocol_result, ISOTP_PROTOCOL_RESULT_TIMEOUT_CR);
+    }
+}
+
+TEST_F(FramingTest, WaitsForSeparationTimeAcrossClockWrap) {
+    gTimeUs = UINT32_MAX - 50U;
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), sizeof(gReceiveBuffer));
+    ASSERT_EQ(isotp_set_tx_dl(&link, 8), ISOTP_RET_OK);
+    ASSERT_EQ(isotp_send(&link, gPayload.data(), 20), ISOTP_RET_OK);
+    deliver_flow_control(&link, PCI_FLOW_STATUS_CONTINUE, 0, 0xF1);
+    ASSERT_EQ(link.send_st_min_us, 100U);
+
+    ++gTimeUs;
+    isotp_poll(&link);
+    ASSERT_EQ(gFrameCount, 2U);
+    EXPECT_EQ(gFrames[1].m_data[0], 0x21);
+
+    gTimeUs += 99U;
+    isotp_poll(&link);
+    EXPECT_EQ(gFrameCount, 2U);
+    ++gTimeUs;
+    isotp_poll(&link);
+    EXPECT_EQ(gFrameCount, 2U);
+    ++gTimeUs;
+    isotp_poll(&link);
+    ASSERT_EQ(gFrameCount, 3U);
+    EXPECT_EQ(gFrames[2].m_data[0], 0x22);
+    EXPECT_EQ(link.send_status, ISOTP_SEND_STATUS_IDLE);
+}
+
+TEST_F(FramingTest, ReservedFlowStatusDoesNotAuthorizeTransmission) {
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), sizeof(gReceiveBuffer));
+    ASSERT_EQ(isotp_set_tx_dl(&link, 8), ISOTP_RET_OK);
+    ASSERT_EQ(isotp_send(&link, gPayload.data(), 20), ISOTP_RET_OK);
+    deliver_flow_control(&link, 3, 0, 0);
+    isotp_poll(&link);
+    EXPECT_EQ(link.send_status, ISOTP_SEND_STATUS_INPROGRESS);
+    EXPECT_EQ(link.send_bs_remain, 0);
+    EXPECT_EQ(gFrameCount, 1U);
+}
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+TEST_F(FramingTest, RejectsPollingReceiveWhileCallbackIsRegistered) {
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), sizeof(gReceiveBuffer));
+    isotp_set_rx_done_cb(&link, on_rx_done, &gRxDoneCount);
+    uint32_t outSize = 0;
+    EXPECT_EQ(isotp_receive(&link, gReceived.data(), sizeof(gReceived), &outSize), ISOTP_RET_ERROR);
+}
+#endif
+
+#ifdef ISO_TP_ENABLE_STREAMING
+TEST_F(FramingTest, RejectsStreamingWithAnEmptyReceiveBuffer) {
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), 0);
+    const uint8_t FRAME[8] = {0x10, 20, 1, 2, 3, 4, 5, 6};
+    deliver(&link, FRAME, sizeof(FRAME));
+    EXPECT_EQ(link.receive_status, ISOTP_RECEIVE_STATUS_IDLE);
+    EXPECT_EQ(link.receive_protocol_result, ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW);
+    ASSERT_EQ(gFrameCount, 1U);
+    EXPECT_EQ(gFrames[0].m_data[0], 0x32);
+}
+
+TEST_F(FramingTest, PreservesStreamingDataWhenOutputBufferIsTooSmall) {
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), sizeof(gReceiveBuffer));
+    const uint8_t FRAME[] = {0x02, 0xCA, 0xFE};
+    deliver(&link, FRAME, sizeof(FRAME));
+    uint8_t output[2] = {0xA5, 0xA5};
+    uint32_t outSize = 123;
+    bool complete = false;
+
+    EXPECT_EQ(isotp_receive_streaming(&link, output, 1, &outSize, &complete), ISOTP_RET_NOSPACE);
+    EXPECT_EQ(output[0], 0xA5);
+    EXPECT_EQ(output[1], 0xA5);
+    EXPECT_EQ(outSize, 123U);
+    EXPECT_FALSE(complete);
+    EXPECT_EQ(link.receive_status, ISOTP_RECEIVE_STATUS_FULL);
+
+    ASSERT_EQ(isotp_receive_streaming(&link, output, sizeof(output), &outSize, &complete), ISOTP_RET_OK);
+    EXPECT_EQ(outSize, 2U);
+    EXPECT_TRUE(complete);
+    EXPECT_EQ(output[0], 0xCA);
+    EXPECT_EQ(output[1], 0xFE);
+}
+#endif
+
+#if ISO_TP_MAX_CAN_FRAME_SIZE >= 12
+TEST_F(FramingTest, RejectsZeroLengthCanFdEscapeFrames) {
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, gSendBuffer.data(), sizeof(gSendBuffer), gReceiveBuffer.data(), sizeof(gReceiveBuffer));
+    const uint8_t FRAME[12] = {};
+    deliver(&link, FRAME, sizeof(FRAME));
+    EXPECT_EQ(link.receive_status, ISOTP_RECEIVE_STATUS_IDLE);
+    EXPECT_EQ(gFrameCount, 0U);
+    EXPECT_EQ(gLastDebugMessage, "Single-frame length too small.");
+}
+#endif
+
 TEST_F(FramingTest, EncodesClassicSingleFrames) { test_classic_single_frame(); }
 TEST_F(FramingTest, EncodesClassicMultiFrames) { test_classic_multi_frame(); }
 TEST_F(FramingTest, ReceivesClassicFrames) { test_classic_receive(); }

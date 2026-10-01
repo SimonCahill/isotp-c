@@ -63,6 +63,10 @@ function(isotpc_add_unit_test test_name source)
     )
 endfunction()
 
+# Exercise the private protocol conversions without exposing them in the API.
+isotpc_add_unit_test(isotp_test_protocol_helpers ${CMAKE_CURRENT_SOURCE_DIR}/test_protocol_helpers.cpp)
+set_property(TARGET isotp_test_protocol_helpers_subject PROPERTY SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/support/protocol_helpers_subject.c)
+
 # Compile the actual padding helper for every supported capacity and padding mode.
 foreach(frameCapacity IN ITEMS 8 12 16 20 24 32 48 64)
     foreach(paddingMode IN ITEMS padded unpadded)
