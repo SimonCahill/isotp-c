@@ -14,7 +14,7 @@
 
 namespace {
 
-    constexpr std::size_t MAX_SIZE = std::numeric_limits<std::size_t>::max();
+    constexpr std::size_t MAX_SIZE = (std::numeric_limits<std::size_t>::max)();
     using Buffer                   = std::array<std::uint8_t, 8>;
 
     struct GuardCase {
