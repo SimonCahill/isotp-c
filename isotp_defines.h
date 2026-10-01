@@ -34,10 +34,6 @@
 
     #include <windows.h>
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-    #define __builtin_bswap8 _byteswap_uint8
-    #define __builtin_bswap16 _byteswap_uint16
-    #define __builtin_bswap32 _byteswap_uint32
-    #define __builtin_bswap64 _byteswap_uint64
 #endif
 
 #if __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__ || defined(_MSC_VER)
