@@ -154,6 +154,20 @@ make USE_STATIC_LIBRARY=ON MAX_CAN_FRAME_SIZE=64 all
 `make tests` configures and runs the CMake unit suite. `make fuzzing` builds the
 libFuzzer receive target with Clang; see the [fuzzing guide](https://github.com/SimonCahill/isotp-c/blob/master/fuzz/README.md).
 
+### Embedded cross-compilation
+
+The [embedded CI workflow](.github/workflows/embedded.yml) builds the static
+library and integration examples through both CMake and native Makefiles, with
+GCC and Clang for Arm Cortex-M0/M4/M7, 32/64-bit RISC-V, and Espressif
+ESP32/S2/S3/C3/C6. Each target checks Classical
+CAN, CAN FD with optional features, and a small configuration without formatted
+errors. These are compile checks; runtime tests run separately on the host.
+Separate GCC diagnostics jobs keep built-in libc checks enabled and test six
+optimization levels, including `-Og`, with assertions both enabled and disabled.
+
+See [Embedded builds](docs/embedded-builds.md) for toolchain installation,
+local commands, compiler versions, and the scope of these checks.
+
 ## Configuration
 
 Use CMake options when the library is a CMake dependency, Make variables with
@@ -295,6 +309,21 @@ cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -Disotpc_ENABLE_TESTING=ON
 cmake --build build-tests
 ctest --test-dir build-tests --output-on-failure
 ```
+
+Run only the `isotp_memcpy` suite with:
+
+```bash
+ctest --test-dir build-tests -R '^isotp_test_memcpy' --output-on-failure
+```
+
+The suite runs with assertions enabled and with `NDEBUG`, covering input checks,
+error precedence, size boundaries, unchanged buffers on rejection, exact copies,
+and overlapping ranges. On platforms exposing `__assert_fail` (such as Linux),
+an additional test target injects invalid `memmove` return values to exercise the
+assertion failure branch. Its assertion handler exits normally so coverage data
+from the child process is saved. Enable `isotpc_ENABLE_COVERAGE` in a Debug build
+to instrument the test subjects; the fault-injection target covers all 12 branches
+of `isotp_memcpy`, including both operands of the null-pointer check.
 
 Compile every integration example with strict warnings:
 

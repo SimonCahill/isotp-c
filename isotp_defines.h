@@ -34,13 +34,13 @@
 
     #include <windows.h>
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-    #define __builtin_bswap8 _byteswap_uint8
-    #define __builtin_bswap16 _byteswap_uint16
-    #define __builtin_bswap32 _byteswap_uint32
-    #define __builtin_bswap64 _byteswap_uint64
 #endif
 
-#define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
+#if __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__ || defined(_MSC_VER)
+    #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
+#else
+    #define LE32TOH(le) le
+#endif // __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__
 
 /**************************************************************
  * CAN frame length (CAN_DL) defines
@@ -68,6 +68,11 @@
 #define ISOTP_CAN_FRAME_FLAG_FD 0x01
 /** Enable CAN FD bit-rate switching for the data phase. */
 #define ISOTP_CAN_FRAME_FLAG_BRS 0x02
+
+/**
+ * @brief Get the smaller of two numbers.
+ */
+#define ISOTP_MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 /**
  * Largest ISO-TP payload that fits in one frame for a given CAN_DL.
@@ -142,7 +147,7 @@ typedef enum {
 
 /** @cond ISOTP_INTERNAL */
 
-/* can fram defination */
+/* CAN frame definitions */
 #if defined(ISOTP_BYTE_ORDER_LITTLE_ENDIAN)
 typedef struct {
     uint8_t reserve_1 : 4;
@@ -364,6 +369,11 @@ typedef enum {
 /* Private: Protocol Control Information (PCI) flow control identifiers.
  */
 typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_FLOW_STATUS_OVERFLOW = 0x2 } IsoTpFlowStatus;
+
+/**
+ * @brief Private: memcpy wrapper return codes.
+ */
+typedef enum { ISOTP_MEMCPY_OK = 0x0, ISOTP_MEMCPY_NULLPTR = 0x01, ISOTP_MEMCPY_DEST_TOO_SMALL = 0x02, ISOTP_MEMCPY_SRC_TOO_SMALL = 0x03 } IsoTpMemCpyResult;
 
 /** @endcond */
 
