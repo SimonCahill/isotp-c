@@ -40,7 +40,11 @@
     #define __builtin_bswap64 _byteswap_uint64
 #endif
 
-#define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
+#if __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__ || defined(_MSC_VER)
+    #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
+#else
+    #define LE32TOH(le) le
+#endif // __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__
 
 /**************************************************************
  * CAN frame length (CAN_DL) defines
@@ -147,7 +151,7 @@ typedef enum {
 
 /** @cond ISOTP_INTERNAL */
 
-/* can fram defination */
+/* CAN frame definitions */
 #if defined(ISOTP_BYTE_ORDER_LITTLE_ENDIAN)
 typedef struct {
     uint8_t reserve_1 : 4;
