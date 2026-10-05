@@ -324,6 +324,18 @@ void isotp_set_tx_done_cb(IsoTpLink* link, isotp_tx_done_cb cb, void* arg);
 void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg);
 #endif
 
+/**
+ * @brief A memory-safe wrapper around memcpy to detect failures and appease the static analysis gods.
+ * 
+ * @param destPtr The destination where the memory shall be copied to.
+ * @param destSize The size of the destination in bytes.
+ * @param source The source where the memory shall be copied from.
+ * @param sourceSize The size of the source memory in bytes.
+ * @param bytesToCopy The total amount of bytes to copy.
+ * @return IsoTpMemCpyResult The result of the copy operation.
+ */
+IsoTpMemCpyResult isotp_memcpy(void* destPtr, const size_t destSize, const void* source, const size_t sourceSize, const size_t bytesToCopy);
+
 /** @} */
 
 #ifdef __cplusplus

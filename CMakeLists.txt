@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 ###
 # Project definition
 ###
-project(isotp LANGUAGES C VERSION 1.9.3 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
+project(isotp LANGUAGES C VERSION 1.9.6 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
@@ -57,7 +57,7 @@ endif()
 ###
 if (NOT isotpc_STATIC_LIBRARY OR isotpc_STATIC_LIBRARY_PIC)
     # Building a shared library or a static library with PIC enabled
-    target_compile_options(isotp PRIVATE -fPIC)
+    set_target_properties(isotp PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
 ###
@@ -143,12 +143,15 @@ endif()
 ###
 # Check for debug builds
 ###
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(isotp PRIVATE -O0 -g) # don't optimise and add debugging symbols
-else()
-    target_compile_options(isotp PRIVATE -O2) # optimise code
-    if (NOT isotpc_STATIC_LIBRARY AND NOT MSVC)
-        target_link_libraries(isotp PRIVATE -s) # strip the library
+if (NOT MSVC)
+    # Visual Studio uses CMake's per-configuration compiler flags.
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_options(isotp PRIVATE -O0 -g) # don't optimise and add debugging symbols
+    else()
+        target_compile_options(isotp PRIVATE -O2) # optimise code
+        if (NOT isotpc_STATIC_LIBRARY)
+            target_link_libraries(isotp PRIVATE -s) # strip the library
+        endif()
     endif()
 endif()
 

@@ -164,7 +164,17 @@ jobs:
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -Disotpc_ENABLE_TESTING=ON ${{ matrix.cmake_options }}
 
       - name: Build
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} -- /m
+        run: |
+          cmake --build build --config ${{ env.BUILD_TYPE }} -- /m 2>&1 | Tee-Object -Variable buildOutput
+          $buildExitCode = $LASTEXITCODE
+          if ($buildExitCode -ne 0) {
+            # Surface MSVC errors in the check annotations as well as the build log.
+            $buildOutput | Select-String 'error [A-Z]+\d+:' | ForEach-Object {
+              $message = $_.Line.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+              Write-Output "::error::$message"
+            }
+          }
+          exit $buildExitCode
 
       - name: Run unit tests
         working-directory: build
