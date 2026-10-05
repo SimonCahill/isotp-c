@@ -30,7 +30,10 @@
 #ifdef _MSC_VER
     #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct content __pragma(pack(pop))
 
-    #define snprintf _snprintf
+    /* Visual Studio 2015 and newer provide the C99 snprintf function. */
+    #if _MSC_VER < 1900
+        #define snprintf _snprintf
+    #endif
 
     #include <windows.h>
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
