@@ -22,6 +22,15 @@
     #endif
 
     #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) content
+#elif defined(__TI_COMPILER_VERSION__)
+    /* TI's compilers accept GCC's attributes, but define __little_endian__ or __big_endian__ rather than __BYTE_ORDER__. */
+    #if defined(__little_endian__)
+        #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
+    #elif !defined(__big_endian__)
+        #error "unsupported byte ordering"
+    #endif
+
+    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) content
 #endif
 
 /**************************************************************
