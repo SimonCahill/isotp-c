@@ -1,0 +1,32 @@
+name: TI ARM compiler
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  armcl:
+    name: armcl / ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [tms570, rm4x, cortex-m4]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install TI ARM compiler
+        id: armcl
+        run: echo "root=$(bash .github/scripts/install-ti-armcl.sh "$RUNNER_TEMP/ti")" >> "$GITHUB_OUTPUT"
+
+      - name: Compile library and check frame layout
+        run: bash .github/scripts/build-ti-armcl.sh "${{ steps.armcl.outputs.root }}" "${{ matrix.target }}"
