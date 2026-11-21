@@ -200,6 +200,36 @@ jobs:
             exit 2
           fi
 
+  ti_armcl:
+    name: TI armcl ${{ matrix.target }} (${{ matrix.name }})
+    needs: coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # tms570: Cortex-R4F big-endian; rm4x: Cortex-R4F little-endian; cortex-m4: Cortex-M4F little-endian.
+        target: [tms570, rm4x, cortex-m4]
+        name: [standard, CAN FD with all features, no formatted errors]
+        include:
+          - name: standard
+            armcl_options: --define=ISO_TP_FRAME_PADDING
+          - name: CAN FD with all features
+            armcl_options: --define=ISO_TP_MAX_CAN_FRAME_SIZE=64 --define=ISO_TP_DEFAULT_TX_DL=32 --define=ISO_TP_FRAME_PADDING --define=ISO_TP_USER_SEND_CAN_ARG --define=ISO_TP_USER_SEND_CAN_FLAGS --define=ISO_TP_CAN_FD_USE_BRS --define=ISO_TP_TRANSMIT_COMPLETE_CALLBACK --define=ISO_TP_RECEIVE_COMPLETE_CALLBACK --define=ISO_TP_ENABLE_STREAMING
+          - name: no formatted errors
+            armcl_options: --define=ISO_TP_FRAME_PADDING --define=ISO_TP_NO_FORMATTED_ERRORS
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install TI ARM compiler
+        id: armcl
+        run: echo "root=$(bash .github/scripts/install-ti-armcl.sh "$RUNNER_TEMP/ti")" >> "$GITHUB_OUTPUT"
+
+      - name: Compile and check frame layout
+        run: bash .github/scripts/build-ti-armcl.sh "${{ steps.armcl.outputs.root }}" ${{ matrix.target }} ${{ matrix.armcl_options }}
+
   static_analysis:
     name: Static analysis
     needs: version_gate
